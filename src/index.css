@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--p-text);
+  background: var(--p-bg);
+}
+
+:root {
+  --p-bg: #ffffff;
+  --p-bg-subtle: #f6f8fa;
+  /* WCAG badge colours */
+  --badge-aaa-bg: #dcfce7;   --badge-aaa-text: #15803d;
+  --badge-aa-bg: #dbeafe;    --badge-aa-text: #1d4ed8;
+  --badge-aal-bg: #e0f2fe;   --badge-aal-text: #0369a1;
+  --badge-fail-bg: #f3f4f6;  --badge-fail-text: #6b7280;
+  --p-bg-inset: #eaeef2;
+  --p-border: #d0d7de;
+  --p-border-muted: #d8dee4;
+  --p-text: #1f2328;
+  --p-text-secondary: #636c76;
+  --p-text-tertiary: #9198a1;
+  --p-accent: #0969da;
+  --p-accent-subtle: #ddf4ff;
+  --p-success: #1a7f37;
+  --p-danger: #cf222e;
+  --p-danger-subtle: #ffebe9;
+}
+
+/* Dark theme — applied via data-theme="dark" on root element */
+[data-theme="dark"] {
+  --badge-aaa-bg: #14532d;   --badge-aaa-text: #86efac;
+  --badge-aa-bg: #1e3a5f;    --badge-aa-text: #93c5fd;
+  --badge-aal-bg: #0c4a6e;   --badge-aal-text: #7dd3fc;
+  --badge-fail-bg: #374151;  --badge-fail-text: #d1d5db;
+  --p-bg: #0d1117;
+  --p-bg-subtle: #161b22;
+  --p-bg-inset: #010409;
+  --p-border: #30363d;
+  --p-border-muted: #21262d;
+  --p-text: #e6edf3;
+  --p-text-secondary: #8b949e;
+  --p-text-tertiary: #6e7681;
+  --p-accent: #58a6ff;
+  --p-accent-subtle: #388bfd1a;
+  --p-success: #3fb950;
+  --p-danger: #f85149;
+  --p-danger-subtle: #da36313d;
+}
+
+input[type="range"][style*="writing-mode"] {
+  appearance: slider-vertical;
+  -webkit-appearance: slider-vertical;
+}
