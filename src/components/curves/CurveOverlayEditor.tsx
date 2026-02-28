@@ -1,4 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
+
+const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 import type { ColorScale, GeneratedRamp } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
 import { getContrast, computeHueShift } from '../../lib/colorMath';
@@ -96,10 +98,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
         style={{ height: 40, borderColor: 'var(--p-border)' }}
       >
         {ramp.steps.map((step) => {
-          const gamutDot =
-            step.gamut === 'p3'  ? { color: '#7c3aed', title: 'P3 only' } :
-            step.gamut === 'out' ? { color: '#dc2626', title: 'Out of P3' } :
-            null;
+          const gamutLabel = step.gamut === 'p3' ? { text: 'P3', color: '#7c3aed' } : null;
           return (
             <div
               key={step.name}
@@ -109,20 +108,21 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
               <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-secondary)' }}>
                 {step.name}
               </span>
-              {gamutDot ? (
-                <span
-                  title={gamutDot.title}
-                  style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: '50%',
-                    backgroundColor: gamutDot.color,
-                    display: 'inline-block',
-                    flexShrink: 0,
-                  }}
-                />
+              {gamutLabel ? (
+                <span style={{
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  lineHeight: 1,
+                  padding: '1px 4px',
+                  borderRadius: 3,
+                  backgroundColor: gamutLabel.color,
+                  color: '#fff',
+                }}>
+                  {gamutLabel.text}
+                </span>
               ) : (
-                <span style={{ width: 5, height: 5, display: 'inline-block' }} />
+                <span style={{ fontSize: 9, lineHeight: 1 }}>&nbsp;</span>
               )}
             </div>
           );
@@ -140,7 +140,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
             onClick={() => onStepClick(i)}
             className="flex-1 relative border-r last:border-r-0 cursor-pointer"
             style={{
-              backgroundColor: step.hex,
+              backgroundColor: (supportsP3 && step.displayP3) || step.hex,
               borderColor: 'rgba(0,0,0,0.07)',
               boxShadow: activeStepIndex === i ? 'inset 0 0 0 2px rgba(255,255,255,0.9)' : undefined,
             }}

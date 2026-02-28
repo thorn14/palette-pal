@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { ColorScale, GeneratedStep } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
 import { getContrast } from '../../lib/colorMath';
@@ -41,15 +41,43 @@ const sectionStyle: React.CSSProperties = {
   borderBottom: '1px solid var(--p-border)',
 };
 
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
 export function RightPanel({ scale, activeStep }: Props) {
   const updateSourceHex = usePaletteStore((s) => s.updateSourceHex);
   const updateScaleName = usePaletteStore((s) => s.updateScaleName);
   const updateHueShift = usePaletteStore((s) => s.updateHueShift);
   const updateChromaPeak = usePaletteStore((s) => s.updateChromaPeak);
   const removeScale = usePaletteStore((s) => s.removeScale);
-  const scales = usePaletteStore((s) => s.scales);
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // --- Hex input draft ---
+  const [hexDraft, setHexDraft] = useState(scale.sourceHex);
+  const hexFocused = useRef(false);
+  useEffect(() => {
+    if (!hexFocused.current) setHexDraft(scale.sourceHex);
+  }, [scale.sourceHex]);
+
+  function commitHex() {
+    hexFocused.current = false;
+    if (HEX_RE.test(hexDraft)) updateSourceHex(scale.id, hexDraft);
+    else setHexDraft(scale.sourceHex);
+  }
+
+  // --- Chroma draft (number next to slider) ---
+  const [chromaDraft, setChromaDraft] = useState(scale.chromaPeak.toFixed(3));
+  const chromaFocused = useRef(false);
+  useEffect(() => {
+    if (!chromaFocused.current) setChromaDraft(scale.chromaPeak.toFixed(3));
+  }, [scale.chromaPeak]);
+
+  function commitChroma() {
+    chromaFocused.current = false;
+    const v = parseFloat(chromaDraft);
+    if (isFinite(v)) updateChromaPeak(scale.id, v);
+    else setChromaDraft(scale.chromaPeak.toFixed(3));
+  }
 
   return (
     <aside
@@ -87,12 +115,11 @@ export function RightPanel({ scale, activeStep }: Props) {
             />
             <input
               type="text"
-              value={scale.sourceHex}
-              onChange={(e) => {
-                if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
-                  updateSourceHex(scale.id, e.target.value);
-                }
-              }}
+              value={hexDraft}
+              onFocus={() => { hexFocused.current = true; }}
+              onChange={(e) => setHexDraft(e.target.value)}
+              onBlur={commitHex}
+              onKeyDown={(e) => { if (e.key === 'Enter') commitHex(); }}
               style={{ ...inputStyle, width: 'auto', flex: 1, fontFamily: 'monospace', fontSize: 12 }}
             />
           </div>
@@ -118,9 +145,25 @@ export function RightPanel({ scale, activeStep }: Props) {
             onChange={(e) => updateChromaPeak(scale.id, parseFloat(e.target.value))}
             style={{ flex: 1, accentColor: 'var(--p-accent)' }}
           />
-          <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--p-text)', minWidth: 40, textAlign: 'right' }}>
-            {scale.chromaPeak.toFixed(3)}
-          </span>
+          <input
+            type="number"
+            min={0}
+            max={0.4}
+            step={0.001}
+            value={chromaDraft}
+            onFocus={() => { chromaFocused.current = true; }}
+            onChange={(e) => setChromaDraft(e.target.value)}
+            onBlur={commitChroma}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitChroma(); }}
+            style={{
+              ...inputStyle,
+              width: 64,
+              textAlign: 'right',
+              fontFamily: 'monospace',
+              fontSize: 12,
+              padding: '4px 6px',
+            }}
+          />
         </div>
       </div>
 
@@ -220,67 +263,65 @@ export function RightPanel({ scale, activeStep }: Props) {
       )}
 
       {/* Delete scale — last section */}
-      {scales.length > 1 && (
-        <div style={{ ...sectionStyle, borderBottom: 'none' }}>
-          <SectionLabel>Danger zone</SectionLabel>
-          {!confirmDelete ? (
-            <button
-              onClick={() => setConfirmDelete(true)}
-              style={{
-                width: '100%',
-                padding: '5px 8px',
-                fontSize: 12,
-                background: 'var(--p-bg)',
-                border: '1px solid var(--p-border)',
-                borderRadius: 6,
-                color: 'var(--p-danger)',
-                cursor: 'pointer',
-              }}
-            >
-              Delete scale
-            </button>
-          ) : (
-            <div>
-              <p style={{ fontSize: 12, color: 'var(--p-text)', marginBottom: 8, lineHeight: 1.4 }}>
-                Delete <strong>{scale.name}</strong>? This cannot be undone.
-              </p>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button
-                  onClick={() => removeScale(scale.id)}
-                  style={{
-                    flex: 1,
-                    padding: '5px 8px',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    background: 'var(--p-danger)',
-                    border: '1px solid var(--p-danger)',
-                    borderRadius: 6,
-                    color: '#fff',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Delete
-                </button>
-                <button
-                  onClick={() => setConfirmDelete(false)}
-                  style={{
-                    flex: 1,
-                    padding: '5px 8px',
-                    fontSize: 12,
-                    background: 'var(--p-bg)',
-                    border: '1px solid var(--p-border)',
-                    borderRadius: 6,
-                    color: 'var(--p-text-secondary)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
+      <div style={{ ...sectionStyle, borderBottom: 'none' }}>
+        <SectionLabel>Danger zone</SectionLabel>
+        {!confirmDelete ? (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            style={{
+              width: '100%',
+              padding: '5px 8px',
+              fontSize: 12,
+              background: 'var(--p-bg)',
+              border: '1px solid var(--p-border)',
+              borderRadius: 6,
+              color: 'var(--p-danger)',
+              cursor: 'pointer',
+            }}
+          >
+            Delete scale
+          </button>
+        ) : (
+          <div>
+            <p style={{ fontSize: 12, color: 'var(--p-text)', marginBottom: 8, lineHeight: 1.4 }}>
+              Delete <strong>{scale.name}</strong>? This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                onClick={() => removeScale(scale.id)}
+                style={{
+                  flex: 1,
+                  padding: '5px 8px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  background: 'var(--p-danger)',
+                  border: '1px solid var(--p-danger)',
+                  borderRadius: 6,
+                  color: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                style={{
+                  flex: 1,
+                  padding: '5px 8px',
+                  fontSize: 12,
+                  background: 'var(--p-bg)',
+                  border: '1px solid var(--p-border)',
+                  borderRadius: 6,
+                  color: 'var(--p-text-secondary)',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </aside>
   );
 }

@@ -6,6 +6,7 @@ import { CurveOverlayEditor } from './components/curves/CurveOverlayEditor';
 import { PalettePreview } from './components/preview/PalettePreview';
 import { ExportModal } from './components/export/ExportModal';
 import { StepListModal } from './components/steps/StepListModal';
+import { BulkCreatePanel } from './components/setup/BulkCreatePanel';
 import { usePaletteStore, selectActiveScale } from './store/paletteStore';
 import { useGeneratedRamp } from './hooks/useGeneratedRamp';
 import type { ColorScale } from './types/palette';
@@ -30,24 +31,7 @@ function EditPanel({ scale }: { scale: ColorScale }) {
         activeStepIndex={activeStepIndex}
         onStepClick={handleStepClick}
       />
-      <RightPanel scale={scale} activeStep={activeStep} />
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div
-      style={{
-        flex: 1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 14,
-        color: 'var(--p-text-secondary)',
-      }}
-    >
-      Add a color scale to begin.
+      <RightPanel key={scale.id} scale={scale} activeStep={activeStep} />
     </div>
   );
 }
@@ -60,6 +44,7 @@ export default function App() {
   const [mode, setMode] = useState<AppMode>('edit');
   const [theme, setTheme] = useState<AppTheme>('light');
   const scale = usePaletteStore(selectActiveScale);
+  const scales = usePaletteStore((s) => s.scales);
 
   async function handleSave() {
     setSaveStatus('saving');
@@ -108,10 +93,10 @@ export default function App() {
       />
 
       <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        {mode === 'edit' && <Sidebar />}
+        {mode === 'edit' && scales.length > 0 && <Sidebar />}
 
         {mode === 'edit' ? (
-          scale ? <EditPanel scale={scale} /> : <EmptyState />
+          scale ? <EditPanel scale={scale} /> : <BulkCreatePanel />
         ) : (
           <PalettePreview />
         )}

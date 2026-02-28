@@ -37,7 +37,8 @@ export type GamutLevel = 'srgb' | 'p3' | 'out';
 export interface GeneratedStep {
   name: string;
   oklch: OklchColor;
-  hex: string;
+  hex: string;          // sRGB-clamped hex (always safe fallback)
+  displayP3?: string;   // color(display-p3 ...) CSS string, present only when gamut === 'p3'
   relativeLuminance: number;
   gamut: GamutLevel;   // gamut of the ideal (pre-sRGB-clamp) color
   maxSrgbC: number;    // max sRGB chroma at this step's L and H (for P3 threshold line)

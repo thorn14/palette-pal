@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { ColorScale, PaletteState, StepNamingConfig } from '../types/palette';
+import type { ColorScale, PaletteState, StepNamingConfig, StepNamingPreset } from '../types/palette';
 import { hexToOklch, buildDefaultCurves, buildChromaCurve } from '../lib/colorMath';
 import { buildLightnessValues, resolveStepNames, type LightnessPreset } from '../constants/stepPresets';
 import initialConfig from '../color-tokens.json';
@@ -15,6 +15,7 @@ function uid(): string {
 interface PaletteActions {
   addScale: (sourceHex: string, name?: string) => void;
   removeScale: (id: string) => void;
+  reorderScales: (fromIndex: number, toIndex: number) => void;
   setActiveScale: (id: string | null) => void;
   updateSourceHex: (id: string, hex: string) => void;
   updateScaleName: (id: string, name: string) => void;
@@ -33,6 +34,7 @@ interface PaletteActions {
   applyLightnessPreset: (id: string, preset: LightnessPreset) => void;
   updateChromaPeak: (id: string, peak: number) => void;
   setFocusedStep: (ref: { scaleId: string; stepName: string } | null) => void;
+  bulkCreateScales: (scales: Array<{ sourceHex: string; name: string }>, namingPreset: StepNamingPreset, lightnessPreset: LightnessPreset) => void;
 }
 
 const DEFAULT_HEX = '#1894f8';
@@ -219,6 +221,12 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
       }
     }),
 
+    reorderScales: (fromIndex, toIndex) => set((state) => {
+      if (fromIndex === toIndex) return;
+      const [item] = state.scales.splice(fromIndex, 1);
+      state.scales.splice(toIndex, 0, item);
+    }),
+
     setActiveScale: (id) => set((state) => {
       state.activeScaleId = id;
     }),
@@ -230,7 +238,16 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
         const sourceOklch = hexToOklch(hex);
         scale.sourceHex = hex;
         scale.sourceOklch = sourceOklch;
-        scale.curves = buildDefaultCurves(sourceOklch, scale.stepCount);
+        const newCurves = buildDefaultCurves(sourceOklch, scale.stepCount);
+        // Preserve user's chroma peak — don't let the new source color override it
+        newCurves.chroma.values = buildChromaCurve(scale.chromaPeak, scale.stepCount);
+        // Preserve lightness — re-apply the active preset or keep custom values
+        if (scale.lightnessPreset === 'custom') {
+          newCurves.lightness.values = scale.curves.lightness.values.slice();
+        } else if (scale.lightnessPreset !== 'tailwind') {
+          newCurves.lightness.values = buildLightnessValues(scale.lightnessPreset as LightnessPreset, scale.stepCount);
+        }
+        scale.curves = newCurves;
       } catch {
         // Invalid hex — ignore
       }
@@ -428,6 +445,19 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
 
     setFocusedStep: (ref) => set((state) => {
       state.focusedStepRef = ref;
+    }),
+
+    bulkCreateScales: (scaleInputs, namingPreset, lightnessPreset) => set((state) => {
+      for (const { sourceHex, name } of scaleInputs) {
+        const scale = makeDefaultScale(sourceHex, name);
+        scale.naming = { preset: namingPreset };
+        if (lightnessPreset !== 'tailwind' && lightnessPreset !== 'custom') {
+          scale.curves.lightness.values = buildLightnessValues(lightnessPreset, scale.stepCount);
+          scale.lightnessPreset = lightnessPreset;
+        }
+        state.scales.push(scale);
+      }
+      state.activeScaleId = state.scales[0]?.id ?? null;
     }),
   }))
 );

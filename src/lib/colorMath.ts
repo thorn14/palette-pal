@@ -87,6 +87,18 @@ export function maxSrgbChroma(l: number, h: number): number {
   return lo;
 }
 
+// Binary-search for the maximum chroma that stays within P3 at the given L and H
+export function maxP3Chroma(l: number, h: number): number {
+  let lo = 0, hi = 0.4;
+  for (let i = 0; i < 20; i++) {
+    const mid = (lo + hi) / 2;
+    const g = checkGamut(l, mid, h);
+    if (g === 'srgb' || g === 'p3') lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
+
 // Build a bell-curve chroma array peaked at chromaPeak
 export function buildChromaCurve(chromaPeak: number, stepCount: number): number[] {
   return Array.from({ length: stepCount }, (_, i) => {
@@ -197,15 +209,27 @@ export function generateRamp(scale: ColorScale): GeneratedRamp {
 
     const h = ((sourceOklch.h + baseDeltaH + hueShiftDelta) % 360 + 360) % 360;
 
-    // Classify gamut before clamping
-    const gamut = checkGamut(l, c, h);
+    // Clamp chroma to P3 gamut first — no color should exceed P3
+    const cP3 = Math.min(c, maxP3Chroma(l, h));
 
-    // Clamp to sRGB gamut
-    const culoriColor = clampChroma({ mode: 'oklch' as const, l, c, h }, 'oklch');
+    // Classify gamut of the P3-clamped ideal color (will be 'srgb' or 'p3', never 'out')
+    const gamut = checkGamut(l, cP3, h);
+
+    // For P3 colors, compute the full-gamut CSS value before sRGB clamping
+    let displayP3: string | undefined;
+    if (gamut === 'p3') {
+      const p3 = toP3({ mode: 'oklch' as const, l, c: cP3, h });
+      if (p3) {
+        displayP3 = `color(display-p3 ${(p3.r ?? 0).toFixed(4)} ${(p3.g ?? 0).toFixed(4)} ${(p3.b ?? 0).toFixed(4)})`;
+      }
+    }
+
+    // Clamp to sRGB for display hex
+    const culoriColor = clampChroma({ mode: 'oklch' as const, l, c: cP3, h }, 'oklch');
     const hex = formatHex(culoriColor) ?? '#000000';
     const oklchOut: OklchColor = {
       l: culoriColor.l ?? l,
-      c: culoriColor.c ?? c,
+      c: culoriColor.c ?? cP3,
       h: culoriColor.h ?? h,
     };
 
@@ -215,6 +239,7 @@ export function generateRamp(scale: ColorScale): GeneratedRamp {
       name: stepNames[i],
       oklch: oklchOut,
       hex,
+      displayP3,
       relativeLuminance,
       gamut,
       maxSrgbC: maxSrgbChroma(l, h),
