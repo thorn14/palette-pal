@@ -1,13 +1,12 @@
-import type { ColorScale, GeneratedStep, StepNamingPreset } from '../../types/palette';
+import { useState } from 'react';
+import type { ColorScale, GeneratedStep } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
 import { getContrast } from '../../lib/colorMath';
-import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
 import { autoHueShiftBase } from '../../lib/colorMath';
 
 interface Props {
   scale: ColorScale;
   activeStep: GeneratedStep | null;
-  onEditSteps: () => void;
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -42,24 +41,25 @@ const sectionStyle: React.CSSProperties = {
   borderBottom: '1px solid var(--p-border)',
 };
 
-export function RightPanel({ scale, activeStep, onEditSteps }: Props) {
+export function RightPanel({ scale, activeStep }: Props) {
   const updateSourceHex = usePaletteStore((s) => s.updateSourceHex);
   const updateScaleName = usePaletteStore((s) => s.updateScaleName);
-  const updateStepNaming = usePaletteStore((s) => s.updateStepNaming);
   const updateHueShift = usePaletteStore((s) => s.updateHueShift);
-  const applyLightnessPreset = usePaletteStore((s) => s.applyLightnessPreset);
   const updateChromaPeak = usePaletteStore((s) => s.updateChromaPeak);
   const removeScale = usePaletteStore((s) => s.removeScale);
   const scales = usePaletteStore((s) => s.scales);
+
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
     <aside
       className="shrink-0 overflow-y-auto"
       style={{ width: 260, background: 'var(--p-bg-subtle)', borderLeft: '1px solid var(--p-border)' }}
     >
-      {/* Scale name */}
+      {/* Scale name + source color */}
       <div style={sectionStyle}>
         <SectionLabel>Scale</SectionLabel>
+
         <FieldLabel>Name</FieldLabel>
         <input
           type="text"
@@ -67,77 +67,44 @@ export function RightPanel({ scale, activeStep, onEditSteps }: Props) {
           onChange={(e) => updateScaleName(scale.id, e.target.value)}
           style={inputStyle}
         />
-        <div style={{ marginTop: 10 }}>
-          <FieldLabel>Step naming</FieldLabel>
-          <select
-            value={scale.naming.preset}
-            onChange={(e) =>
-              updateStepNaming(scale.id, { ...scale.naming, preset: e.target.value as StepNamingPreset })
-            }
-            style={{ ...inputStyle, cursor: 'pointer' }}
-          >
-            <option value="tailwind">Tailwind (50–950)</option>
-            <option value="numeric">Numeric (1–11)</option>
-            <option value="custom">Custom (list)</option>
-          </select>
-        </div>
-        {scales.length > 1 && (
-          <button
-            onClick={() => removeScale(scale.id)}
-            style={{
-              marginTop: 10,
-              width: '100%',
-              padding: '5px 8px',
-              fontSize: 12,
-              background: 'var(--p-bg)',
-              border: '1px solid var(--p-border)',
-              borderRadius: 6,
-              color: 'var(--p-danger)',
-              cursor: 'pointer',
-            }}
-          >
-            Delete scale
-          </button>
-        )}
-      </div>
 
-      {/* Source color */}
-      <div style={sectionStyle}>
-        <SectionLabel>Source color</SectionLabel>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <input
-            type="color"
-            value={scale.sourceHex}
-            onChange={(e) => updateSourceHex(scale.id, e.target.value)}
-            style={{
-              width: 32,
-              height: 32,
-              padding: 0,
-              border: '1px solid var(--p-border)',
-              borderRadius: 4,
-              cursor: 'pointer',
-              background: 'none',
-            }}
-          />
-          <input
-            type="text"
-            value={scale.sourceHex}
-            onChange={(e) => {
-              if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
-                updateSourceHex(scale.id, e.target.value);
-              }
-            }}
-            style={{ ...inputStyle, width: 'auto', flex: 1, fontFamily: 'monospace', fontSize: 12 }}
-          />
-        </div>
-        <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--p-text-secondary)', lineHeight: 1.8 }}>
-          <div>L {scale.sourceOklch.l.toFixed(4)}</div>
-          <div>C {scale.sourceOklch.c.toFixed(4)}</div>
-          <div>H {scale.sourceOklch.h.toFixed(2)}°</div>
+        <div style={{ marginTop: 12 }}>
+          <FieldLabel>Source color</FieldLabel>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <input
+              type="color"
+              value={scale.sourceHex}
+              onChange={(e) => updateSourceHex(scale.id, e.target.value)}
+              style={{
+                width: 32,
+                height: 32,
+                padding: 0,
+                border: '1px solid var(--p-border)',
+                borderRadius: 4,
+                cursor: 'pointer',
+                background: 'none',
+              }}
+            />
+            <input
+              type="text"
+              value={scale.sourceHex}
+              onChange={(e) => {
+                if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
+                  updateSourceHex(scale.id, e.target.value);
+                }
+              }}
+              style={{ ...inputStyle, width: 'auto', flex: 1, fontFamily: 'monospace', fontSize: 12 }}
+            />
+          </div>
+          <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--p-text-secondary)', lineHeight: 1.8 }}>
+            <div>L {scale.sourceOklch.l.toFixed(4)}</div>
+            <div>C {scale.sourceOklch.c.toFixed(4)}</div>
+            <div>H {scale.sourceOklch.h.toFixed(2)}°</div>
+          </div>
         </div>
       </div>
 
-      {/* Chroma peak */}
+      {/* Chroma */}
       <div style={sectionStyle}>
         <SectionLabel>Chroma</SectionLabel>
         <FieldLabel>Peak chroma (0 – 0.4)</FieldLabel>
@@ -155,44 +122,6 @@ export function RightPanel({ scale, activeStep, onEditSteps }: Props) {
             {scale.chromaPeak.toFixed(3)}
           </span>
         </div>
-      </div>
-
-      {/* Lightness preset */}
-      <div style={sectionStyle}>
-        <SectionLabel>Lightness curve</SectionLabel>
-        <select
-          value={scale.lightnessPreset}
-          onChange={(e) => applyLightnessPreset(scale.id, e.target.value as LightnessPreset)}
-          style={{ ...inputStyle, cursor: 'pointer' }}
-        >
-          {LIGHTNESS_PRESET_OPTIONS.map((p) => (
-            <option key={p.value} value={p.value}>{p.label}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Steps */}
-      <div style={sectionStyle}>
-        <SectionLabel>Steps</SectionLabel>
-        <p style={{ fontSize: 12, color: 'var(--p-text-secondary)', marginBottom: 8 }}>
-          {scale.stepCount} steps • {scale.naming.preset === 'custom' ? 'Custom names' : 'Preset names'}
-        </p>
-        <button
-          onClick={onEditSteps}
-          style={{
-            width: '100%',
-            padding: '6px 10px',
-            fontSize: 12,
-            fontWeight: 500,
-            background: 'var(--p-bg)',
-            border: '1px solid var(--p-border)',
-            borderRadius: 6,
-            color: 'var(--p-text)',
-            cursor: 'pointer',
-          }}
-        >
-          Edit steps & lightness
-        </button>
       </div>
 
       {/* Hue shift */}
@@ -271,8 +200,6 @@ export function RightPanel({ scale, activeStep, onEditSteps }: Props) {
             <div>C {activeStep.oklch.c.toFixed(4)}</div>
             <div>H {activeStep.oklch.h.toFixed(2)}°</div>
           </div>
-
-          {/* Contrast vs white/black */}
           <div style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
             {[['#ffffff', 'on white'] as const, ['#000000', 'on black'] as const].map(([bg, label]) => {
               const c = getContrast(activeStep.hex, bg);
@@ -289,6 +216,69 @@ export function RightPanel({ scale, activeStep, onEditSteps }: Props) {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Delete scale — last section */}
+      {scales.length > 1 && (
+        <div style={{ ...sectionStyle, borderBottom: 'none' }}>
+          <SectionLabel>Danger zone</SectionLabel>
+          {!confirmDelete ? (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              style={{
+                width: '100%',
+                padding: '5px 8px',
+                fontSize: 12,
+                background: 'var(--p-bg)',
+                border: '1px solid var(--p-border)',
+                borderRadius: 6,
+                color: 'var(--p-danger)',
+                cursor: 'pointer',
+              }}
+            >
+              Delete scale
+            </button>
+          ) : (
+            <div>
+              <p style={{ fontSize: 12, color: 'var(--p-text)', marginBottom: 8, lineHeight: 1.4 }}>
+                Delete <strong>{scale.name}</strong>? This cannot be undone.
+              </p>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={() => removeScale(scale.id)}
+                  style={{
+                    flex: 1,
+                    padding: '5px 8px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    background: 'var(--p-danger)',
+                    border: '1px solid var(--p-danger)',
+                    borderRadius: 6,
+                    color: '#fff',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  style={{
+                    flex: 1,
+                    padding: '5px 8px',
+                    fontSize: 12,
+                    background: 'var(--p-bg)',
+                    border: '1px solid var(--p-border)',
+                    borderRadius: 6,
+                    color: 'var(--p-text-secondary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </aside>

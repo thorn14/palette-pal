@@ -19,9 +19,11 @@ interface PaletteActions {
   updateSourceHex: (id: string, hex: string) => void;
   updateScaleName: (id: string, name: string) => void;
   updateStepNaming: (id: string, naming: StepNamingConfig) => void;
+  updateStepNamingAll: (naming: StepNamingConfig) => void;
   updateStepName: (id: string, index: number, name: string) => void;
   insertStepAt: (id: string, index: number, name?: string) => void;
   removeStepAt: (id: string, index: number) => void;
+  setStepsAll: (names: string[]) => void;
   updateCurveValue: (id: string, channel: 'lightness' | 'chroma' | 'hue', stepIndex: number, value: number) => void;
   updateLightnessAt: (id: string, index: number, value: number) => void;
   setLightnessList: (id: string, values: number[]) => void;
@@ -195,6 +197,17 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
 
     addScale: (sourceHex, name) => set((state) => {
       const scale = makeDefaultScale(sourceHex, name ?? `Color ${state.scales.length + 1}`);
+
+      // Inherit naming + step count from existing scales so all ramps stay in sync
+      const reference = state.scales[0];
+      if (reference) {
+        scale.naming = reference.naming.customNames
+          ? { preset: reference.naming.preset, customNames: reference.naming.customNames.slice() }
+          : { preset: reference.naming.preset };
+        scale.stepCount = reference.stepCount;
+        scale.curves = buildDefaultCurves(scale.sourceOklch, reference.stepCount);
+      }
+
       state.scales.push(scale);
       state.activeScaleId = scale.id;
     }),
@@ -231,6 +244,12 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     updateStepNaming: (id, naming) => set((state) => {
       const scale = state.scales.find((s) => s.id === id);
       if (scale) scale.naming = naming;
+    }),
+
+    updateStepNamingAll: (naming) => set((state) => {
+      for (const scale of state.scales) {
+        scale.naming = naming;
+      }
     }),
 
     updateStepName: (id, index, name) => set((state) => {
@@ -330,6 +349,18 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
       scale.curves.lightness.values = resampleCurve(scale.curves.lightness.values, cleaned.length);
       scale.curves.chroma.values = resampleCurve(scale.curves.chroma.values, cleaned.length);
       scale.curves.hue.values = resampleCurve(scale.curves.hue.values, cleaned.length);
+    }),
+
+    setStepsAll: (names) => set((state) => {
+      const cleaned = names.map((n) => n.trim()).filter(Boolean);
+      if (!cleaned.length) return;
+      for (const scale of state.scales) {
+        scale.naming = { preset: 'custom', customNames: cleaned };
+        scale.stepCount = cleaned.length;
+        scale.curves.lightness.values = resampleCurve(scale.curves.lightness.values, cleaned.length);
+        scale.curves.chroma.values = resampleCurve(scale.curves.chroma.values, cleaned.length);
+        scale.curves.hue.values = resampleCurve(scale.curves.hue.values, cleaned.length);
+      }
     }),
 
     setStepsAndLightness: (id, names, lightness) => set((state) => {

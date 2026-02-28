@@ -17,7 +17,6 @@ function EditPanel({ scale }: { scale: ColorScale }) {
   const ramp = useGeneratedRamp(scale);
   const [activeStepIndex, setActiveStepIndex] = useState<number | null>(null);
   const activeStep = activeStepIndex !== null ? (ramp.steps[activeStepIndex] ?? null) : null;
-  const [showSteps, setShowSteps] = useState(false);
 
   function handleStepClick(i: number) {
     setActiveStepIndex((prev) => (prev === i ? null : i));
@@ -31,8 +30,7 @@ function EditPanel({ scale }: { scale: ColorScale }) {
         activeStepIndex={activeStepIndex}
         onStepClick={handleStepClick}
       />
-      <RightPanel scale={scale} activeStep={activeStep} onEditSteps={() => setShowSteps(true)} />
-      {showSteps && <StepListModal scale={scale} onClose={() => setShowSteps(false)} />}
+      <RightPanel scale={scale} activeStep={activeStep} />
     </div>
   );
 }
@@ -56,6 +54,8 @@ function EmptyState() {
 
 export default function App() {
   const [showExport, setShowExport] = useState(false);
+  const [showSteps, setShowSteps] = useState(false);
+  const [showLightness, setShowLightness] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [mode, setMode] = useState<AppMode>('edit');
   const [theme, setTheme] = useState<AppTheme>('light');
@@ -98,6 +98,8 @@ export default function App() {
       <TopBar
         onExport={() => setShowExport(true)}
         onSave={handleSave}
+        onEditSteps={() => setShowSteps(true)}
+        onEditLightness={() => setShowLightness(true)}
         mode={mode}
         onModeChange={setMode}
         theme={theme}
@@ -116,6 +118,8 @@ export default function App() {
       </div>
 
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}
+      {showSteps && scale && <StepListModal scale={scale} mode="names" applyToAll onClose={() => setShowSteps(false)} />}
+      {showLightness && scale && <StepListModal scale={scale} mode="lightness" onClose={() => setShowLightness(false)} />}
     </div>
   );
 }

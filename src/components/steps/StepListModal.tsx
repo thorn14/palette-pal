@@ -5,6 +5,8 @@ import { usePaletteStore } from '../../store/paletteStore';
 
 interface Props {
   scale: ColorScale;
+  mode: 'names' | 'lightness';
+  applyToAll?: boolean;
   onClose: () => void;
 }
 
@@ -29,47 +31,9 @@ function parseLightnessList(text: string): number[] {
     .filter((v): v is number => v !== null);
 }
 
-function formatNumber(value: number): string {
-  const rounded = Math.round(value * 10000) / 10000;
-  const str = rounded.toString();
-  return str;
-}
-
-function parseMaybeNumber(value?: string): number | null {
-  if (!value) return null;
-  const num = parseFloat(value);
-  return Number.isFinite(num) ? num : null;
-}
-
-function autoInsertName(names: string[], index: number): string {
-  const prev = names[index - 1];
-  const next = names[index];
-  const prevNum = parseMaybeNumber(prev);
-  const nextNum = parseMaybeNumber(next);
-  if (prevNum !== null && nextNum !== null) {
-    return formatNumber((prevNum + nextNum) / 2);
-  }
-  if (prevNum === null && nextNum !== null) {
-    const nextNextNum = parseMaybeNumber(names[index + 1]);
-    if (nextNextNum !== null) {
-      return formatNumber(nextNum - (nextNextNum - nextNum));
-    }
-  }
-  if (prevNum !== null && nextNum === null) {
-    const prevPrevNum = parseMaybeNumber(names[index - 2]);
-    if (prevPrevNum !== null) {
-      return formatNumber(prevNum + (prevNum - prevPrevNum));
-    }
-  }
-  return `New ${index + 1}`;
-}
-
-export function StepListModal({ scale, onClose }: Props) {
-  const updateStepName = usePaletteStore((s) => s.updateStepName);
-  const updateLightnessAt = usePaletteStore((s) => s.updateLightnessAt);
-  const insertStepAt = usePaletteStore((s) => s.insertStepAt);
-  const removeStepAt = usePaletteStore((s) => s.removeStepAt);
+export function StepListModal({ scale, mode, applyToAll = false, onClose }: Props) {
   const setStepsAndLightness = usePaletteStore((s) => s.setStepsAndLightness);
+  const setStepsAll = usePaletteStore((s) => s.setStepsAll);
 
   const names = useMemo(
     () => resolveStepNames(scale.naming.preset, scale.stepCount, scale.naming.customNames),
@@ -78,47 +42,47 @@ export function StepListModal({ scale, onClose }: Props) {
 
   const lightness = scale.curves.lightness.values;
 
-  const [bulkNames, setBulkNames] = useState('');
-  const [bulkLightness, setBulkLightness] = useState('');
+  const [value, setValue] = useState(() =>
+    mode === 'names'
+      ? names.join(', ')
+      : lightness.map((v) => v.toFixed(4)).join(', ')
+  );
+
   const [error, setError] = useState<string | null>(null);
 
-  function handleInsert(index: number) {
-    const name = autoInsertName(names, index);
-    insertStepAt(scale.id, index, name);
-  }
-
-  function handleBulkApply() {
-    const parsedNames = bulkNames.trim() ? parseNameList(bulkNames) : null;
-    const parsedLightness = bulkLightness.trim() ? parseLightnessList(bulkLightness) : null;
-
-    if (!parsedNames && !parsedLightness) {
-      setError('Paste a step list, a lightness list, or both.');
-      return;
+  function handleApply() {
+    if (mode === 'names') {
+      const parsed = parseNameList(value);
+      if (parsed.length === 0) {
+        setError('Name list is empty.');
+        return;
+      }
+      if (applyToAll) {
+        setStepsAll(parsed);
+      } else {
+        setStepsAndLightness(scale.id, parsed, null);
+      }
+    } else {
+      const parsed = parseLightnessList(value);
+      if (parsed.length === 0) {
+        setError('Lightness list is empty.');
+        return;
+      }
+      if (parsed.length !== scale.stepCount) {
+        setError(`Expected ${scale.stepCount} values — one per step.`);
+        return;
+      }
+      setStepsAndLightness(scale.id, null, parsed);
     }
-
-    if (parsedNames && parsedNames.length === 0) {
-      setError('Step list is empty.');
-      return;
-    }
-
-    if (parsedLightness && parsedLightness.length === 0) {
-      setError('Lightness list is empty.');
-      return;
-    }
-
-    if (parsedNames && parsedLightness && parsedNames.length !== parsedLightness.length) {
-      setError('Step list and lightness list must be the same length.');
-      return;
-    }
-
-    if (!parsedNames && parsedLightness && parsedLightness.length !== scale.stepCount) {
-      setError('Lightness list length must match current step count.');
-      return;
-    }
-
-    setStepsAndLightness(scale.id, parsedNames, parsedLightness);
     setError(null);
+    onClose();
   }
+
+  const title = mode === 'names' ? 'Edit Step Names' : 'Edit Lightness Values';
+  const placeholder = mode === 'names' ? '50, 100, 200, 300, 400' : '0.9927, 0.9745, 0.9344, 0.8511';
+  const hint = mode === 'names'
+    ? `Comma or newline separated. Changing the count adds or removes steps.${applyToAll ? ' Applies to all scales.' : ''}`
+    : `${scale.stepCount} values required (0–1 or 0–100), comma or space separated.`;
 
   return (
     <div
@@ -140,13 +104,13 @@ export function StepListModal({ scale, onClose }: Props) {
           border: '1px solid var(--p-border)',
           borderRadius: 12,
           width: '100%',
-          maxWidth: 860,
+          maxWidth: 440,
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: '85vh',
           boxShadow: '0 10px 32px rgba(0,0,0,0.25)',
         }}
       >
+        {/* Header */}
         <div
           style={{
             display: 'flex',
@@ -156,14 +120,9 @@ export function StepListModal({ scale, onClose }: Props) {
             borderBottom: '1px solid var(--p-border)',
           }}
         >
-          <div>
-            <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--p-text)' }}>
-              Steps & Lightness
-            </h2>
-            <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--p-text-secondary)' }}>
-              Edit step names and L values (0–1). Paste bulk lists below.
-            </p>
-          </div>
+          <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--p-text)' }}>
+            {title}
+          </h2>
           <button
             onClick={onClose}
             style={{
@@ -185,234 +144,38 @@ export function StepListModal({ scale, onClose }: Props) {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: 16, padding: 20, overflow: 'auto' }}>
-          <div style={{ flex: 1, minWidth: 340 }}>
-            <div
-              style={{
-                border: '1px solid var(--p-border)',
-                borderRadius: 10,
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '60px 1fr 120px 140px',
-                  gap: 0,
-                  background: 'var(--p-bg-subtle)',
-                  borderBottom: '1px solid var(--p-border)',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  color: 'var(--p-text-secondary)',
-                  padding: '8px 10px',
-                }}
-              >
-                <div>#</div>
-                <div>Name</div>
-                <div>L (0–1)</div>
-                <div>Actions</div>
-              </div>
-
-              <div style={{ maxHeight: 360, overflow: 'auto' }}>
-                {names.map((name, index) => (
-                  <div
-                    key={`${name}-${index}`}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '60px 1fr 120px 140px',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '8px 10px',
-                      borderBottom: '1px solid var(--p-border-muted)',
-                    }}
-                  >
-                    <div style={{ fontSize: 12, color: 'var(--p-text-tertiary)' }}>
-                      {index + 1}
-                    </div>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => updateStepName(scale.id, index, e.target.value)}
-                      style={{
-                        padding: '6px 8px',
-                        borderRadius: 6,
-                        border: '1px solid var(--p-border)',
-                        background: 'var(--p-bg)',
-                        fontSize: 13,
-                        color: 'var(--p-text)',
-                      }}
-                    />
-                    <input
-                      type="number"
-                      min={0}
-                      max={1}
-                      step={0.0001}
-                      value={lightness[index] != null ? lightness[index].toFixed(4) : '0.5000'}
-                      onChange={(e) => updateLightnessAt(scale.id, index, parseFloat(e.target.value) || 0)}
-                      style={{
-                        padding: '6px 8px',
-                        borderRadius: 6,
-                        border: '1px solid var(--p-border)',
-                        background: 'var(--p-bg)',
-                        fontSize: 12,
-                        fontFamily: 'monospace',
-                        color: 'var(--p-text)',
-                        textAlign: 'right',
-                      }}
-                    />
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        onClick={() => handleInsert(index)}
-                        style={{
-                          padding: '4px 6px',
-                          fontSize: 11,
-                          background: 'var(--p-bg)',
-                          border: '1px solid var(--p-border)',
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                          color: 'var(--p-text-secondary)',
-                        }}
-                      >
-                        + before
-                      </button>
-                      <button
-                        onClick={() => handleInsert(index + 1)}
-                        style={{
-                          padding: '4px 6px',
-                          fontSize: 11,
-                          background: 'var(--p-bg)',
-                          border: '1px solid var(--p-border)',
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                          color: 'var(--p-text-secondary)',
-                        }}
-                      >
-                        + after
-                      </button>
-                      <button
-                        onClick={() => removeStepAt(scale.id, index)}
-                        style={{
-                          padding: '4px 6px',
-                          fontSize: 11,
-                          background: 'var(--p-danger-subtle)',
-                          border: '1px solid var(--p-border)',
-                          borderRadius: 6,
-                          cursor: 'pointer',
-                          color: 'var(--p-danger)',
-                        }}
-                      >
-                        remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ padding: 10, display: 'flex', justifyContent: 'space-between' }}>
-                <button
-                  onClick={() => handleInsert(names.length)}
-                  style={{
-                    padding: '6px 10px',
-                    fontSize: 12,
-                    background: 'var(--p-bg)',
-                    border: '1px solid var(--p-border)',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    color: 'var(--p-text)',
-                  }}
-                >
-                  Add step at end
-                </button>
-                <span style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
-                  {names.length} steps
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ width: 320, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div>
-              <label style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
-                Step list (names only)
-              </label>
-              <textarea
-                value={bulkNames}
-                onChange={(e) => setBulkNames(e.target.value)}
-                placeholder="50, 100, 200, 300"
-                style={{
-                  width: '100%',
-                  height: 120,
-                  marginTop: 6,
-                  padding: 10,
-                  borderRadius: 8,
-                  border: '1px solid var(--p-border)',
-                  background: 'var(--p-bg-subtle)',
-                  color: 'var(--p-text)',
-                  fontSize: 12,
-                  fontFamily: 'monospace',
-                  resize: 'vertical',
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
-                Lightness list (0–1 or 0–100)
-              </label>
-              <textarea
-                value={bulkLightness}
-                onChange={(e) => setBulkLightness(e.target.value)}
-                placeholder="0.98, 0.94, 0.86, 0.76"
-                style={{
-                  width: '100%',
-                  height: 120,
-                  marginTop: 6,
-                  padding: 10,
-                  borderRadius: 8,
-                  border: '1px solid var(--p-border)',
-                  background: 'var(--p-bg-subtle)',
-                  color: 'var(--p-text)',
-                  fontSize: 12,
-                  fontFamily: 'monospace',
-                  resize: 'vertical',
-                }}
-              />
-            </div>
-
-            {error && (
-              <div style={{ fontSize: 12, color: 'var(--p-danger)' }}>
-                {error}
-              </div>
-            )}
-
-            <button
-              onClick={handleBulkApply}
-              style={{
-                padding: '8px 12px',
-                fontSize: 13,
-                background: 'var(--p-accent)',
-                border: '1px solid var(--p-accent)',
-                borderRadius: 8,
-                cursor: 'pointer',
-                color: '#fff',
-                fontWeight: 600,
-              }}
-            >
-              Apply Bulk Lists
-            </button>
-
-            <p style={{ fontSize: 11, color: 'var(--p-text-tertiary)', lineHeight: 1.4 }}>
-              Lightness values accept 0–1 or 0–100. Display is normalized to 0–1.
-            </p>
-          </div>
+        {/* Body */}
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <textarea
+            value={value}
+            onChange={(e) => { setValue(e.target.value); setError(null); }}
+            placeholder={placeholder}
+            rows={6}
+            style={{
+              width: '100%',
+              padding: 10,
+              borderRadius: 8,
+              border: '1px solid var(--p-border)',
+              background: 'var(--p-bg-subtle)',
+              color: 'var(--p-text)',
+              fontSize: 13,
+              fontFamily: 'monospace',
+              resize: 'vertical',
+              boxSizing: 'border-box',
+            }}
+          />
+          {error && (
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--p-danger)' }}>{error}</p>
+          )}
+          <p style={{ margin: 0, fontSize: 11, color: 'var(--p-text-tertiary)', lineHeight: 1.5 }}>
+            {hint}
+          </p>
         </div>
 
+        {/* Footer */}
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
             justifyContent: 'flex-end',
             gap: 8,
             padding: '12px 20px',
@@ -422,8 +185,8 @@ export function StepListModal({ scale, onClose }: Props) {
           <button
             onClick={onClose}
             style={{
-              padding: '6px 12px',
-              fontSize: 12,
+              padding: '6px 14px',
+              fontSize: 13,
               background: 'transparent',
               border: '1px solid var(--p-border)',
               borderRadius: 6,
@@ -431,7 +194,22 @@ export function StepListModal({ scale, onClose }: Props) {
               color: 'var(--p-text-secondary)',
             }}
           >
-            Close
+            Cancel
+          </button>
+          <button
+            onClick={handleApply}
+            style={{
+              padding: '6px 14px',
+              fontSize: 13,
+              fontWeight: 600,
+              background: 'var(--p-accent)',
+              border: '1px solid var(--p-accent)',
+              borderRadius: 6,
+              cursor: 'pointer',
+              color: '#fff',
+            }}
+          >
+            Apply
           </button>
         </div>
       </div>
