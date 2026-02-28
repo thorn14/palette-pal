@@ -7,7 +7,7 @@ export const LIGHTNESS_PRESET_OPTIONS: { value: LightnessPreset; label: string }
   { value: 'linear',    label: 'Linear'    },
   { value: 'eased',     label: 'Eased'     },
   { value: 'material',  label: 'Material'  },
-  { value: 'custom',    label: 'Custom (list)' },
+  { value: 'custom',    label: 'Custom…'       },
 ];
 
 // Material Design tonal lightness reference (index 0 = lightest)

@@ -83,14 +83,15 @@ export function PaletteColorWheel() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: 20,
       }}
     >
       <div
         style={{
           position: 'relative',
-          width: size,
-          height: size,
+          width: 'min(calc(100% - 48px), calc(100vh - 180px))',
+          aspectRatio: '1',
           flexShrink: 0,
         }}
       >

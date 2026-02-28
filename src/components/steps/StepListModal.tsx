@@ -51,7 +51,7 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
 
   const [error, setError] = useState<string | null>(null);
 
-  const [applyToAllLightness, setApplyToAllLightness] = useState(false);
+  const [applyToAllLightness, setApplyToAllLightness] = useState(true);
 
   function handleApply() {
     if (mode === 'names') {
@@ -89,7 +89,7 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
   const placeholder = mode === 'names' ? '50, 100, 200, 300, 400' : '0.9927, 0.9745, 0.9344, 0.8511';
   const hint = mode === 'names'
     ? `Comma or newline separated. Changing the count adds or removes steps.${applyToAll ? ' Applies to all scales.' : ''}`
-    : `${scale.stepCount} values required (0–1 or 0–100), comma or space separated.`;
+    : `${scale.stepCount} values required (0–1 or 0–100), comma or space separated. Applies to all scales by default.`;
 
   return (
     <div

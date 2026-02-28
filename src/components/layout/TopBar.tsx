@@ -40,6 +40,18 @@ const compactSelectStyle: React.CSSProperties = {
   color: 'var(--p-text)',
   cursor: 'pointer',
   outline: 'none',
+  minWidth: 110,
+};
+
+const linkBtnStyle: React.CSSProperties = {
+  padding: 0,
+  fontSize: 12,
+  background: 'none',
+  border: 'none',
+  color: 'var(--p-text-secondary)',
+  cursor: 'pointer',
+  textDecoration: 'underline',
+  textUnderlineOffset: 2,
 };
 
 const compactBtnStyle: React.CSSProperties = {
@@ -111,15 +123,23 @@ export function TopBar({ onExport, onSave, onEditSteps, onEditLightness, mode, o
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <span style={labelStyle}>Steps</span>
           <select
+            id="steps-preset"
+            name="steps-preset"
             value={scale.naming.preset}
-            onChange={(e) => updateStepNamingAll({ preset: e.target.value as StepNamingPreset })}
+            onChange={(e) => {
+              const v = e.target.value as StepNamingPreset;
+              updateStepNamingAll({ preset: v });
+              if (v === 'custom') onEditSteps();
+            }}
             style={compactSelectStyle}
           >
             <option value="tailwind">Tailwind</option>
             <option value="numeric">Numeric</option>
-            <option value="custom">Custom</option>
+            <option value="custom">Custom…</option>
           </select>
-          <button onClick={onEditSteps} style={compactBtnStyle}>Edit</button>
+          {scale.naming.preset === 'custom' && (
+            <button onClick={onEditSteps} style={linkBtnStyle}>edit</button>
+          )}
         </div>
       )}
 
@@ -130,15 +150,27 @@ export function TopBar({ onExport, onSave, onEditSteps, onEditLightness, mode, o
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <span style={labelStyle}>Lightness</span>
           <select
+            id="lightness-preset"
+            name="lightness-preset"
             value={scale.lightnessPreset}
-            onChange={(e) => applyLightnessPreset(scale.id, e.target.value as LightnessPreset)}
+            onChange={(e) => {
+              const v = e.target.value as LightnessPreset;
+              if (v === 'custom') {
+                applyLightnessPreset(scale.id, 'custom');
+                onEditLightness();
+              } else {
+                applyLightnessPreset(scale.id, v);
+              }
+            }}
             style={compactSelectStyle}
           >
             {LIGHTNESS_PRESET_OPTIONS.map((p) => (
               <option key={p.value} value={p.value}>{p.label}</option>
             ))}
           </select>
-          <button onClick={onEditLightness} style={compactBtnStyle}>Edit</button>
+          {scale.lightnessPreset === 'custom' && (
+            <button onClick={onEditLightness} style={linkBtnStyle}>edit</button>
+          )}
         </div>
       )}
 

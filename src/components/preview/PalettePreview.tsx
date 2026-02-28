@@ -1,16 +1,127 @@
+import { useState, useRef, useEffect } from 'react';
 import { usePaletteStore } from '../../store/paletteStore';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
-import type { ColorScale } from '../../types/palette';
+import type { ColorScale, GeneratedStep } from '../../types/palette';
 
-function PreviewRow({ scale, colCount }: { scale: ColorScale; colCount: number }) {
+function ColorSwatchTooltip({
+  scale,
+  step,
+  onEditScale,
+}: {
+  scale: ColorScale;
+  step: GeneratedStep;
+  onEditScale?: (scaleId: string) => void;
+}) {
+  const [visible, setVisible] = useState(false);
+  const [coords, setCoords] = useState({ x: 0, y: 0 });
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!visible || !wrapperRef.current) return;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    setCoords({
+      x: rect.left + rect.width / 2,
+      y: rect.bottom + 4,
+    });
+  }, [visible]);
+
+  return (
+    <div
+      ref={wrapperRef}
+      style={{ position: 'relative', height: 48 }}
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+    >
+      <div
+        style={{
+          backgroundColor: step.hex,
+          height: 48,
+          cursor: onEditScale ? 'pointer' : 'default',
+          borderRight: '1px solid var(--p-border)',
+          outline: visible ? '2px solid var(--p-accent)' : 'none',
+          outlineOffset: visible ? 2 : 0,
+          zIndex: visible ? 10 : 'auto',
+          position: visible ? 'relative' : undefined,
+        }}
+      />
+      {visible && (
+        <div
+          ref={tooltipRef}
+          role="tooltip"
+          style={{
+            position: 'fixed',
+            left: coords.x,
+            top: coords.y,
+            transform: 'translate(-50%, 0)',
+            zIndex: 50,
+            pointerEvents: 'auto',
+            minWidth: 160,
+            padding: '8px 12px',
+            background: 'var(--p-bg)',
+            border: '1px solid var(--p-border)',
+            borderRadius: 8,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            fontSize: 12,
+            fontFamily: 'monospace',
+          }}
+          onMouseEnter={() => setVisible(true)}
+          onMouseLeave={() => setVisible(false)}
+        >
+          <div style={{ color: 'var(--p-text)', fontWeight: 600, marginBottom: 4 }}>
+            {scale.name} / {step.name}
+          </div>
+          <div style={{ color: 'var(--p-text-secondary)', marginBottom: 6 }}>{step.hex}</div>
+          <div style={{ color: 'var(--p-text-secondary)', fontSize: 11, marginBottom: 8 }}>
+            L {step.oklch.l.toFixed(2)} C {step.oklch.c.toFixed(3)} h {step.oklch.h.toFixed(0)}°
+          </div>
+          {onEditScale && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                onEditScale(scale.id);
+              }}
+              style={{
+                display: 'block',
+                width: '100%',
+                padding: '4px 8px',
+                fontSize: 11,
+                fontWeight: 500,
+                background: 'var(--p-accent)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                cursor: 'pointer',
+              }}
+            >
+              Edit scale →
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PreviewRow({
+  scale,
+  colCount,
+  onEditScale,
+}: {
+  scale: ColorScale;
+  colCount: number;
+  onEditScale?: (scaleId: string) => void;
+}) {
   const ramp = useGeneratedRamp(scale);
   return (
     <>
       {ramp.steps.slice(0, colCount).map((step) => (
-        <div
+        <ColorSwatchTooltip
           key={step.name}
-          title={`${scale.name} ${step.name}\n${step.hex}`}
-          style={{ backgroundColor: step.hex, height: 48 }}
+          scale={scale}
+          step={step}
+          onEditScale={onEditScale}
         />
       ))}
     </>
@@ -41,7 +152,11 @@ function HeaderRow({ scale }: { scale: ColorScale }) {
   );
 }
 
-export function PalettePreview() {
+interface PalettePreviewProps {
+  onEditScale?: (scaleId: string) => void;
+}
+
+export function PalettePreview({ onEditScale }: PalettePreviewProps) {
   const scales = usePaletteStore((s) => s.scales);
   const firstScale = scales[0];
 
@@ -124,7 +239,7 @@ export function PalettePreview() {
             >
               {scale.name}
             </div>
-            <PreviewRow scale={scale} colCount={colCount} />
+            <PreviewRow scale={scale} colCount={colCount} onEditScale={onEditScale} />
           </div>
         ))}
       </div>

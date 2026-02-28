@@ -13,7 +13,7 @@ import { useGeneratedRamp } from './hooks/useGeneratedRamp';
 import type { ColorScale } from './types/palette';
 
 type AppMode = 'edit' | 'preview' | 'visualize';
-type AppTheme = 'light' | 'dark';
+type AppTheme = 'dark' | 'light';
 
 function EditPanel({ scale }: { scale: ColorScale }) {
   const ramp = useGeneratedRamp(scale);
@@ -43,7 +43,7 @@ export default function App() {
   const [showLightness, setShowLightness] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [mode, setMode] = useState<AppMode>('edit');
-  const [theme, setTheme] = useState<AppTheme>('light');
+  const [theme, setTheme] = useState<AppTheme>('dark');
   const scale = usePaletteStore(selectActiveScale);
   const scales = usePaletteStore((s) => s.scales);
 
@@ -97,7 +97,14 @@ export default function App() {
         {mode === 'edit' && scales.length > 0 && <Sidebar />}
 
         {mode === 'edit' && (scale ? <EditPanel scale={scale} /> : <BulkCreatePanel />)}
-        {mode === 'preview' && <PalettePreview />}
+        {mode === 'preview' && (
+          <PalettePreview
+            onEditScale={(scaleId) => {
+              usePaletteStore.getState().setActiveScale(scaleId);
+              setMode('edit');
+            }}
+          />
+        )}
         {mode === 'visualize' && <PaletteColorWheel />}
       </div>
 
