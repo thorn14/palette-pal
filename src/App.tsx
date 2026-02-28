@@ -4,6 +4,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { RightPanel } from './components/layout/RightPanel';
 import { CurveOverlayEditor } from './components/curves/CurveOverlayEditor';
 import { PalettePreview } from './components/preview/PalettePreview';
+import { PaletteColorWheel } from './components/visualize/PaletteColorWheel';
 import { ExportModal } from './components/export/ExportModal';
 import { StepListModal } from './components/steps/StepListModal';
 import { BulkCreatePanel } from './components/setup/BulkCreatePanel';
@@ -11,7 +12,7 @@ import { usePaletteStore, selectActiveScale } from './store/paletteStore';
 import { useGeneratedRamp } from './hooks/useGeneratedRamp';
 import type { ColorScale } from './types/palette';
 
-type AppMode = 'edit' | 'preview';
+type AppMode = 'edit' | 'preview' | 'visualize';
 type AppTheme = 'light' | 'dark';
 
 function EditPanel({ scale }: { scale: ColorScale }) {
@@ -95,11 +96,9 @@ export default function App() {
       <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {mode === 'edit' && scales.length > 0 && <Sidebar />}
 
-        {mode === 'edit' ? (
-          scale ? <EditPanel scale={scale} /> : <BulkCreatePanel />
-        ) : (
-          <PalettePreview />
-        )}
+        {mode === 'edit' && (scale ? <EditPanel scale={scale} /> : <BulkCreatePanel />)}
+        {mode === 'preview' && <PalettePreview />}
+        {mode === 'visualize' && <PaletteColorWheel />}
       </div>
 
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}

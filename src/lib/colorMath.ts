@@ -48,6 +48,15 @@ export function oklchToHex(color: OklchColor): string {
   return formatHex(culoriColor) ?? '#000000';
 }
 
+// Source color with chroma peak applied (for swatch preview)
+export function sourceWithChromaToHex(l: number, chromaPeak: number, h: number): string {
+  const clamped = clampChroma(
+    { mode: 'oklch' as const, l, c: chromaPeak, h, alpha: 1 },
+    'oklch'
+  );
+  return formatHex(clamped) ?? '#000000';
+}
+
 // Compute relative luminance for WCAG (using culori's wcagContrast against white/black trick)
 export function getRelativeLuminance(hex: string): number {
   const ratio = wcagContrast(hex, '#000000');

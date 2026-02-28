@@ -3,7 +3,7 @@ import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
 import type { StepNamingPreset } from '../../types/palette';
 
-type AppMode = 'edit' | 'preview';
+type AppMode = 'edit' | 'preview' | 'visualize';
 type AppTheme = 'light' | 'dark';
 
 interface Props {
@@ -145,7 +145,7 @@ export function TopBar({ onExport, onSave, onEditSteps, onEditLightness, mode, o
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Edit / Preview toggle */}
+      {/* Edit / Preview / Visualize toggle */}
       <div
         style={{
           display: 'flex',
@@ -155,7 +155,7 @@ export function TopBar({ onExport, onSave, onEditSteps, onEditLightness, mode, o
           flexShrink: 0,
         }}
       >
-        {(['edit', 'preview'] as const).map((m, i) => (
+        {(['edit', 'preview', 'visualize'] as const).map((m, i) => (
           <button
             key={m}
             onClick={() => onModeChange(m)}

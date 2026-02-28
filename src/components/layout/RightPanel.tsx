@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { ColorScale, GeneratedStep } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
-import { getContrast } from '../../lib/colorMath';
-import { autoHueShiftBase } from '../../lib/colorMath';
+import { getContrast, sourceWithChromaToHex, autoHueShiftBase } from '../../lib/colorMath';
 
 interface Props {
   scale: ColorScale;
@@ -101,7 +100,7 @@ export function RightPanel({ scale, activeStep }: Props) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <input
               type="color"
-              value={scale.sourceHex}
+              value={sourceWithChromaToHex(scale.sourceOklch.l, scale.chromaPeak, scale.sourceOklch.h)}
               onChange={(e) => updateSourceHex(scale.id, e.target.value)}
               style={{
                 width: 32,
