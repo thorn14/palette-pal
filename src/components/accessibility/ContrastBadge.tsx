@@ -6,11 +6,11 @@ interface Props {
   showRatio?: boolean;
 }
 
-const LEVEL_STYLES: Record<WCAGLevel, string> = {
-  AAA: 'bg-emerald-600 text-white',
-  AA: 'bg-blue-600 text-white',
-  'AA-large': 'bg-sky-500 text-white',
-  fail: 'bg-neutral-300 text-neutral-600',
+const LEVEL_STYLES: Record<WCAGLevel, { backgroundColor: string; color: string }> = {
+  AAA: { backgroundColor: 'var(--p-success-subtle)', color: 'var(--p-success)' },
+  AA: { backgroundColor: 'var(--p-success-subtle)', color: 'var(--p-success)' },
+  'AA-large': { backgroundColor: 'var(--p-success-subtle)', color: 'var(--p-success)' },
+  fail: { backgroundColor: 'var(--p-danger-subtle)', color: 'var(--p-danger)' },
 };
 
 const LEVEL_LABEL: Record<WCAGLevel, string> = {
@@ -23,7 +23,8 @@ const LEVEL_LABEL: Record<WCAGLevel, string> = {
 export function ContrastBadge({ level, ratio, showRatio = false }: Props) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold leading-none ${LEVEL_STYLES[level]}`}
+      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold leading-none"
+      style={LEVEL_STYLES[level]}
       title={ratio ? `Contrast ratio: ${ratio.toFixed(2)}:1` : undefined}
     >
       {LEVEL_LABEL[level]}

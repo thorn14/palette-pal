@@ -63,71 +63,67 @@ export function PalettePreview() {
   }
 
   const colCount = firstScale.stepCount;
+  const gridColumns = `minmax(120px, 120px) repeat(${colCount}, minmax(0, 1fr))`;
 
   return (
-    <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-      {/* Scale name labels */}
+    <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+      {/* Header */}
       <div
         style={{
-          display: 'flex',
-          flexDirection: 'column',
-          borderRight: '1px solid var(--p-border)',
-          flexShrink: 0,
+          display: 'grid',
+          gridTemplateColumns: gridColumns,
+          height: 28,
+          borderBottom: '1px solid var(--p-border)',
           background: 'var(--p-bg-subtle)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 3,
         }}
       >
-        {/* Spacer for header row */}
-        <div style={{ height: 28, borderBottom: '1px solid var(--p-border)' }} />
-        {scales.map((scale) => (
-          <div
-            key={scale.id}
-            style={{
-              height: 48,
-              display: 'flex',
-              alignItems: 'center',
-              paddingInline: 12,
-              fontSize: 12,
-              fontWeight: 600,
-              fontFamily: 'monospace',
-              color: 'var(--p-text)',
-              borderBottom: '1px solid var(--p-border)',
-              whiteSpace: 'nowrap',
-              minWidth: 80,
-            }}
-          >
-            {scale.name}
-          </div>
-        ))}
-      </div>
-
-      {/* Grid area */}
-      <div style={{ flex: 1, overflow: 'auto', minWidth: 0 }}>
-        {/* Step name header */}
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${colCount}, 1fr)`,
-            height: 28,
-            borderBottom: '1px solid var(--p-border)',
-            background: 'var(--p-bg-subtle)',
-            position: 'sticky',
-            top: 0,
-            zIndex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            paddingInline: 12,
+            fontSize: 11,
+            fontWeight: 600,
+            fontFamily: 'monospace',
+            color: 'var(--p-text-secondary)',
           }}
         >
-          <HeaderRow scale={firstScale} />
+          Name
         </div>
+        <HeaderRow scale={firstScale} />
+      </div>
 
-        {/* Color rows */}
+      {/* Rows */}
+      <div>
         {scales.map((scale) => (
           <div
             key={scale.id}
             style={{
               display: 'grid',
-              gridTemplateColumns: `repeat(${colCount}, 1fr)`,
+              gridTemplateColumns: gridColumns,
               borderBottom: '1px solid var(--p-border)',
             }}
           >
+            <div
+              style={{
+                height: 48,
+                display: 'flex',
+                alignItems: 'center',
+                paddingInline: 12,
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: 'monospace',
+                color: 'var(--p-text)',
+                borderRight: '1px solid var(--p-border)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+              }}
+            >
+              {scale.name}
+            </div>
             <PreviewRow scale={scale} colCount={colCount} />
           </div>
         ))}

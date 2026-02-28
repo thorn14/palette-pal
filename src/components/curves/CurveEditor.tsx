@@ -19,7 +19,7 @@ export function CurveEditor({ scale }: Props) {
         min={0}
         max={1}
         step={0.001}
-        previewColor="#facc15"
+        previewColor="var(--p-text)"
         onChange={(i, v) => updateCurveValue(scale.id, 'lightness', i, v)}
       />
 
@@ -29,7 +29,7 @@ export function CurveEditor({ scale }: Props) {
         min={0}
         max={0.4}
         step={0.001}
-        previewColor="#4ade80"
+        previewColor="var(--p-text-secondary)"
         onChange={(i, v) => updateCurveValue(scale.id, 'chroma', i, v)}
       />
 
@@ -39,7 +39,7 @@ export function CurveEditor({ scale }: Props) {
         min={-180}
         max={180}
         step={1}
-        previewColor="#c084fc"
+        previewColor="var(--p-text-tertiary)"
         onChange={(i, v) => updateCurveValue(scale.id, 'hue', i, v)}
       />
     </div>

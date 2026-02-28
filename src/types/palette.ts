@@ -1,4 +1,4 @@
-export interface OklchColor { l: number; c: number; h: number }
+export interface OklchColor { l: number; c: number; h: number; alpha?: number }
 
 export interface CurvePoints { values: number[] }  // one per step
 
@@ -24,6 +24,7 @@ export interface ColorScale {
   name: string;
   sourceHex: string;
   sourceOklch: OklchColor;
+  sourceAlpha: number;
   stepCount: number;           // default: 11
   naming: StepNamingConfig;
   curves: CurveConfig;

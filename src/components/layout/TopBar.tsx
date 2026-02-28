@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
 import type { StepNamingPreset } from '../../types/palette';
@@ -57,12 +58,25 @@ export function TopBar({ onExport, onSave, onEditSteps, onEditLightness, mode, o
   const updateStepNamingAll = usePaletteStore((s) => s.updateStepNamingAll);
   const applyLightnessPreset = usePaletteStore((s) => s.applyLightnessPreset);
   const scale = usePaletteStore(selectActiveScale);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const saveLabel =
     saveStatus === 'saving' ? 'Saving…' :
     saveStatus === 'saved' ? 'Saved' :
     saveStatus === 'error' ? 'Save failed' :
     'Save';
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClick(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [menuOpen]);
 
   return (
     <header
@@ -75,31 +89,19 @@ export function TopBar({ onExport, onSave, onEditSteps, onEditLightness, mode, o
         background: 'var(--p-bg)',
         borderBottom: '1px solid var(--p-border)',
         flexShrink: 0,
-        overflow: 'hidden',
+        overflow: 'visible',
       }}
     >
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
         <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
           <circle cx="10" cy="10" r="9" fill="var(--p-bg-subtle)" stroke="var(--p-border)" strokeWidth="1.5" />
-          <circle cx="7"  cy="7"  r="2.2" fill="#0969da" />
-          <circle cx="13" cy="7"  r="2.2" fill="#bf3989" />
-          <circle cx="7"  cy="13" r="2.2" fill="#1a7f37" />
-          <circle cx="13" cy="13" r="2.2" fill="#9a6700" />
+          <circle cx="7" cy="7" r="2.2" fill="var(--p-text-secondary)" />
+          <circle cx="13" cy="7" r="2.2" fill="var(--p-text-tertiary)" />
+          <circle cx="7" cy="13" r="2.2" fill="var(--p-text)" />
+          <circle cx="13" cy="13" r="2.2" fill="var(--p-border)" />
         </svg>
         <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--p-text)' }}>palette-pal</span>
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 500,
-            padding: '1px 7px',
-            borderRadius: 99,
-            border: '1px solid var(--p-border)',
-            color: 'var(--p-text-secondary)',
-          }}
-        >
-          Experimental
-        </span>
       </div>
 
       {divider}
@@ -174,59 +176,135 @@ export function TopBar({ onExport, onSave, onEditSteps, onEditLightness, mode, o
         ))}
       </div>
 
+      <button
+        onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')}
+        title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+        style={{
+          width: 30,
+          height: 30,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--p-bg)',
+          border: '1px solid var(--p-border)',
+          borderRadius: 6,
+          cursor: 'pointer',
+          color: 'var(--p-text-secondary)',
+          fontSize: 14,
+        }}
+      >
+        {theme === 'light' ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d="M20 15.36A9 9 0 0 1 8.64 4 9 9 0 1 0 20 15.36Z" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.75" />
+            <path d="M12 3v2.25M12 18.75V21M3 12h2.25M18.75 12H21M5.64 5.64l1.6 1.6M16.76 16.76l1.6 1.6M18.36 5.64l-1.6 1.6M7.24 16.76l-1.6 1.6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+          </svg>
+        )}
+      </button>
+
       {/* Right: Save + theme + Export */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        <button
-          onClick={onSave}
-          disabled={saveStatus === 'saving'}
+        <div
+          ref={menuRef}
           style={{
-            padding: '4px 14px',
+            display: 'inline-flex',
+            position: 'relative',
+            border: '1px solid var(--p-border)',
+            borderRadius: 6,
+            overflow: 'visible',
+            background: 'var(--p-bg)',
             fontSize: 12,
-            fontWeight: 500,
-            background: 'var(--p-bg)',
-            border: '1px solid var(--p-border)',
-            borderRadius: 6,
-            color: saveStatus === 'error' ? 'var(--p-danger)' : 'var(--p-text)',
-            cursor: saveStatus === 'saving' ? 'default' : 'pointer',
           }}
         >
-          {saveLabel}
-        </button>
-        <button
-          onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')}
-          title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-          style={{
-            width: 30,
-            height: 30,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'var(--p-bg)',
-            border: '1px solid var(--p-border)',
-            borderRadius: 6,
-            cursor: 'pointer',
-            color: 'var(--p-text-secondary)',
-            fontSize: 14,
-          }}
-        >
-          {theme === 'light' ? '🌙' : '☀️'}
-        </button>
-        <button
-          onClick={onExport}
-          style={{
-            padding: '4px 14px',
-            fontSize: 12,
-            fontWeight: 500,
-            background: 'var(--p-bg)',
-            border: '1px solid var(--p-border)',
-            borderRadius: 6,
-            color: 'var(--p-text)',
-            cursor: 'pointer',
-          }}
-        >
-          Export
-        </button>
+          <button
+            onClick={onSave}
+            disabled={saveStatus === 'saving'}
+            style={{
+              padding: '4px 14px',
+              fontWeight: 500,
+              background: 'var(--p-bg)',
+              border: 'none',
+              color:
+                saveStatus === 'error'
+                  ? 'var(--p-danger)'
+                  : saveStatus === 'saved'
+                    ? 'var(--p-success)'
+                    : 'var(--p-text)',
+              cursor: saveStatus === 'saving' ? 'default' : 'pointer',
+            }}
+          >
+            {saveLabel}
+          </button>
+          <button
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-label="More save/export options"
+            style={{
+              padding: '4px 10px',
+              borderLeft: '1px solid var(--p-border)',
+              background: 'var(--p-bg)',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
+              <path d="M2 3h6L5 7z" fill="var(--p-text)" />
+            </svg>
+          </button>
+          {menuOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '110%',
+                right: 0,
+                background: 'var(--p-bg)',
+                border: '1px solid var(--p-border)',
+                borderRadius: 6,
+                padding: '4px 0',
+                boxShadow: '0 6px 16px rgba(0,0,0,0.12)',
+                zIndex: 5,
+                minWidth: 140,
+              }}
+            >
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  onSave();
+                }}
+                disabled={saveStatus === 'saving'}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  textAlign: 'left',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: saveStatus === 'saving' ? 'default' : 'pointer',
+                }}
+              >
+                Save
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  onExport();
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  textAlign: 'left',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+            >
+              Export
+            </button>
+          </div>
+        )}
       </div>
-    </header>
-  );
+    </div>
+  </header>
+);
 }

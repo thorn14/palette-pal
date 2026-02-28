@@ -28,8 +28,8 @@ export function CurveTrack({ label, values, min, max, step = 0.001, previewColor
               step={step}
               value={val}
               onChange={(e) => onChange(i, parseFloat(e.target.value))}
-              className="w-full cursor-pointer accent-blue-500"
-              style={{ writingMode: 'vertical-lr', direction: 'rtl', height: '80px', width: '100%' }}
+              className="w-full cursor-pointer"
+              style={{ writingMode: 'vertical-lr', direction: 'rtl', height: '80px', width: '100%', accentColor: 'var(--p-accent)' }}
               title={`Step ${i + 1}: ${val.toFixed(3)}`}
             />
           </div>

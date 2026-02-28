@@ -20,7 +20,8 @@ export function HueShiftControls({ scale }: Props) {
           max={100}
           value={scale.hueShift.lightEndAdjust}
           onChange={(e) => updateHueShift(scale.id, 'lightEndAdjust', parseInt(e.target.value))}
-          className="w-full accent-amber-400"
+          className="w-full"
+          style={{ accentColor: 'var(--p-accent)' }}
         />
       </div>
       <div className="flex-1 space-y-1">
@@ -33,7 +34,8 @@ export function HueShiftControls({ scale }: Props) {
           max={100}
           value={scale.hueShift.darkEndAdjust}
           onChange={(e) => updateHueShift(scale.id, 'darkEndAdjust', parseInt(e.target.value))}
-          className="w-full accent-blue-400"
+          className="w-full"
+          style={{ accentColor: 'var(--p-accent)' }}
         />
       </div>
     </div>

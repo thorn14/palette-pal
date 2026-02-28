@@ -33,6 +33,7 @@ function parseLightnessList(text: string): number[] {
 
 export function StepListModal({ scale, mode, applyToAll = false, onClose }: Props) {
   const setStepsAndLightness = usePaletteStore((s) => s.setStepsAndLightness);
+  const setLightnessAll = usePaletteStore((s) => s.setLightnessAll);
   const setStepsAll = usePaletteStore((s) => s.setStepsAll);
 
   const names = useMemo(
@@ -49,6 +50,8 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
   );
 
   const [error, setError] = useState<string | null>(null);
+
+  const [applyToAllLightness, setApplyToAllLightness] = useState(false);
 
   function handleApply() {
     if (mode === 'names') {
@@ -72,7 +75,11 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
         setError(`Expected ${scale.stepCount} values — one per step.`);
         return;
       }
-      setStepsAndLightness(scale.id, null, parsed);
+      if (applyToAllLightness) {
+        setLightnessAll(parsed);
+      } else {
+        setStepsAndLightness(scale.id, null, parsed);
+      }
     }
     setError(null);
     onClose();
@@ -146,30 +153,41 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
 
         {/* Body */}
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <textarea
-            value={value}
-            onChange={(e) => { setValue(e.target.value); setError(null); }}
-            placeholder={placeholder}
-            rows={6}
-            style={{
-              width: '100%',
-              padding: 10,
-              borderRadius: 8,
-              border: '1px solid var(--p-border)',
+        <textarea
+          value={value}
+          onChange={(e) => { setValue(e.target.value); setError(null); }}
+          placeholder={placeholder}
+          rows={6}
+          style={{
+            width: '100%',
+            padding: 10,
+            borderRadius: 8,
+            border: '1px solid var(--p-border)',
               background: 'var(--p-bg-subtle)',
               color: 'var(--p-text)',
               fontSize: 13,
               fontFamily: 'monospace',
               resize: 'vertical',
               boxSizing: 'border-box',
-            }}
-          />
-          {error && (
-            <p style={{ margin: 0, fontSize: 12, color: 'var(--p-danger)' }}>{error}</p>
-          )}
-          <p style={{ margin: 0, fontSize: 11, color: 'var(--p-text-tertiary)', lineHeight: 1.5 }}>
-            {hint}
-          </p>
+          }}
+        />
+        {error && (
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--p-danger)' }}>{error}</p>
+        )}
+        {mode === 'lightness' && (
+          <label style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>
+            <input
+              type="checkbox"
+              checked={applyToAllLightness}
+              onChange={(e) => setApplyToAllLightness(e.target.checked)}
+              style={{ marginRight: 6 }}
+            />
+            Apply to all scales
+          </label>
+        )}
+        <p style={{ margin: 0, fontSize: 11, color: 'var(--p-text-tertiary)', lineHeight: 1.5 }}>
+          {hint}
+        </p>
         </div>
 
         {/* Footer */}

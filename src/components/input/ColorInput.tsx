@@ -46,9 +46,9 @@ export function ColorInput({ value, onChange, label = 'Source color' }: Props) {
           type="text"
           value={draft}
           onChange={handleChange}
-          placeholder="#1894f8"
+          placeholder="#808080"
           className={`flex-1 bg-neutral-800 border rounded-lg px-3 py-1.5 text-sm font-mono text-white focus:outline-none focus:ring-2 transition-colors
-            ${error ? 'border-red-500 focus:ring-red-500' : 'border-neutral-700 focus:ring-blue-500'}`}
+            ${error ? 'border-red-500 focus:ring-red-500' : 'border-neutral-700 focus:ring-neutral-500'}`}
           spellCheck={false}
         />
         {error && <span className="text-xs text-red-400">Invalid hex</span>}

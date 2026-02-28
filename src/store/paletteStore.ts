@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { ColorScale, PaletteState, StepNamingConfig, StepNamingPreset } from '../types/palette';
-import { hexToOklch, buildDefaultCurves, buildChromaCurve } from '../lib/colorMath';
+import { hexToOklch, buildDefaultCurves, buildChromaCurve, oklchToHex } from '../lib/colorMath';
 import { buildLightnessValues, resolveStepNames, type LightnessPreset } from '../constants/stepPresets';
 import initialConfig from '../color-tokens.json';
 
@@ -30,6 +30,7 @@ interface PaletteActions {
   setLightnessList: (id: string, values: number[]) => void;
   setStepList: (id: string, names: string[]) => void;
   setStepsAndLightness: (id: string, names: string[] | null, lightness: number[] | null) => void;
+  setLightnessAll: (values: number[]) => void;
   updateHueShift: (id: string, end: 'lightEndAdjust' | 'darkEndAdjust', value: number) => void;
   applyLightnessPreset: (id: string, preset: LightnessPreset) => void;
   updateChromaPeak: (id: string, peak: number) => void;
@@ -42,11 +43,13 @@ const DEFAULT_HEX = '#1894f8';
 function makeDefaultScale(sourceHex: string, name?: string): ColorScale {
   const sourceOklch = hexToOklch(sourceHex);
   const stepCount = 11;
+  const normalizedHex = oklchToHex(sourceOklch);
   return {
     id: uid(),
     name: name ?? 'Color',
-    sourceHex,
+    sourceHex: normalizedHex,
     sourceOklch,
+    sourceAlpha: sourceOklch.alpha ?? 1,
     stepCount,
     naming: { preset: 'tailwind' },
     curves: buildDefaultCurves(sourceOklch, stepCount),
@@ -121,8 +124,8 @@ function inferStepCount(partial: Partial<ColorScale>): number {
 }
 
 function inflateScale(partial: Partial<ColorScale>, fallbackName: string): ColorScale {
-  const sourceHex = typeof partial.sourceHex === 'string' ? partial.sourceHex : DEFAULT_HEX;
-  const sourceOklch = hexToOklch(sourceHex);
+  const sourceHexInput = typeof partial.sourceHex === 'string' ? partial.sourceHex : DEFAULT_HEX;
+  const sourceOklch = hexToOklch(sourceHexInput);
   const stepCount = inferStepCount(partial);
 
   const baseCurves = buildDefaultCurves(sourceOklch, stepCount);
@@ -162,8 +165,9 @@ function inflateScale(partial: Partial<ColorScale>, fallbackName: string): Color
   return {
     id: typeof partial.id === 'string' ? partial.id : uid(),
     name: typeof partial.name === 'string' ? partial.name : fallbackName,
-    sourceHex,
+    sourceHex: oklchToHex(sourceOklch),
     sourceOklch,
+    sourceAlpha: sourceOklch.alpha ?? 1,
     stepCount,
     naming,
     curves,
@@ -236,8 +240,9 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
       if (!scale) return;
       try {
         const sourceOklch = hexToOklch(hex);
-        scale.sourceHex = hex;
+        scale.sourceHex = oklchToHex(sourceOklch);
         scale.sourceOklch = sourceOklch;
+        scale.sourceAlpha = sourceOklch.alpha ?? 1;
         const newCurves = buildDefaultCurves(sourceOklch, scale.stepCount);
         // Preserve user's chroma peak — don't let the new source color override it
         newCurves.chroma.values = buildChromaCurve(scale.chromaPeak, scale.stepCount);
@@ -417,6 +422,15 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
 
       scale.curves.chroma.values = resampleCurve(scale.curves.chroma.values, nextCount);
       scale.curves.hue.values = resampleCurve(scale.curves.hue.values, nextCount);
+    }),
+    
+    setLightnessAll: (values) => set((state) => {
+      const cleaned = values.length ? values.map((v) => Math.max(0, Math.min(1, v))) : [];
+      if (!cleaned.length) return;
+      for (const scale of state.scales) {
+        scale.curves.lightness.values = resampleCurve(cleaned, scale.stepCount);
+        scale.lightnessPreset = 'custom';
+      }
     }),
 
     updateHueShift: (id, end, value) => set((state) => {

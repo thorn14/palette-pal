@@ -18,7 +18,7 @@ export function StepNamingSelect({ value, onChange }: Props) {
       <select
         value={value.preset}
         onChange={(e) => onChange({ ...value, preset: e.target.value as StepNamingPreset })}
-        className="bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+        className="bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-neutral-500 cursor-pointer"
       >
         {PRESETS.map((p) => (
           <option key={p.value} value={p.value}>{p.label}</option>

@@ -7,7 +7,7 @@ interface Props {
   color?: string;
 }
 
-export function CurvePreview({ values, min, max, width = 120, height = 40, color = '#60a5fa' }: Props) {
+export function CurvePreview({ values, min, max, width = 120, height = 40, color = 'var(--p-text-secondary)' }: Props) {
   if (values.length < 2) return null;
 
   const range = max - min || 1;

@@ -175,8 +175,8 @@ export function RightPanel({ scale, activeStep }: Props) {
         </p>
         {(
           [
-            { key: 'lightEndAdjust' as const, label: 'Light end', dotColor: '#d97706' },
-            { key: 'darkEndAdjust'  as const, label: 'Dark end',  dotColor: '#2563eb' },
+            { key: 'lightEndAdjust' as const, label: 'Light end', dotColor: 'var(--p-text-secondary)' },
+            { key: 'darkEndAdjust'  as const, label: 'Dark end',  dotColor: 'var(--p-text-tertiary)' },
           ] as const
         ).map(({ key, label, dotColor }) => {
           const adjust = scale.hueShift[key];
@@ -251,7 +251,7 @@ export function RightPanel({ scale, activeStep }: Props) {
                   <span>{label}</span>
                   <span style={{ fontFamily: 'monospace', color: 'var(--p-text)' }}>
                     {c.ratio.toFixed(2)}
-                    <span style={{ marginLeft: 6, fontSize: 10, color: c.level === 'fail' ? '#dc2626' : '#16a34a', fontWeight: 600 }}>
+                    <span style={{ marginLeft: 6, fontSize: 10, color: c.level === 'fail' ? 'var(--p-danger)' : 'var(--p-success)', fontWeight: 600 }}>
                       {c.level === 'fail' ? 'Fail' : c.level}
                     </span>
                   </span>
