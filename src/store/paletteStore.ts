@@ -34,6 +34,7 @@ interface PaletteActions {
   updateHueShift: (id: string, end: 'lightEndAdjust' | 'darkEndAdjust', value: number) => void;
   applyLightnessPreset: (id: string, preset: LightnessPreset) => void;
   updateChromaPeak: (id: string, peak: number) => void;
+  setChromaCurveValues: (id: string, values: number[]) => void;
   setFocusedStep: (ref: { scaleId: string; stepName: string } | null) => void;
   bulkCreateScales: (scales: Array<{ sourceHex: string; name: string }>, namingPreset: StepNamingPreset, lightnessPreset: LightnessPreset) => void;
 }
@@ -455,6 +456,12 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
       const clamped = Math.max(0, Math.min(0.4, peak));
       scale.chromaPeak = clamped;
       scale.curves.chroma.values = buildChromaCurve(clamped, scale.stepCount);
+    }),
+
+    setChromaCurveValues: (id, values) => set((state) => {
+      const scale = state.scales.find((s) => s.id === id);
+      if (!scale) return;
+      scale.curves.chroma.values = values.slice(0, scale.stepCount);
     }),
 
     setFocusedStep: (ref) => set((state) => {

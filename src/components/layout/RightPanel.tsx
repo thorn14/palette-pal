@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import type { ColorScale, GeneratedStep } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
-import { getContrast, sourceWithChromaToHex, autoHueShiftBase } from '../../lib/colorMath';
+import { getContrast, sourceWithChromaToHex, autoHueShiftBase, maxP3Chroma, maxSrgbChroma } from '../../lib/colorMath';
+import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 
 interface Props {
   scale: ColorScale;
@@ -47,7 +48,9 @@ export function RightPanel({ scale, activeStep }: Props) {
   const updateScaleName = usePaletteStore((s) => s.updateScaleName);
   const updateHueShift = usePaletteStore((s) => s.updateHueShift);
   const updateChromaPeak = usePaletteStore((s) => s.updateChromaPeak);
+  const setChromaCurveValues = usePaletteStore((s) => s.setChromaCurveValues);
   const removeScale = usePaletteStore((s) => s.removeScale);
+  const ramp = useGeneratedRamp(scale);
 
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -163,6 +166,44 @@ export function RightPanel({ scale, activeStep }: Props) {
               padding: '4px 6px',
             }}
           />
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+          <button
+            onClick={() => {
+              const values = ramp.steps.map((step) => maxSrgbChroma(step.oklch.l, step.oklch.h));
+              setChromaCurveValues(scale.id, values);
+            }}
+            style={{
+              flex: 1,
+              padding: '5px 8px',
+              fontSize: 12,
+              background: 'var(--p-bg)',
+              border: '1px solid var(--p-border)',
+              borderRadius: 6,
+              color: 'var(--p-text-secondary)',
+              cursor: 'pointer',
+            }}
+          >
+            Pin to sRGB
+          </button>
+          <button
+            onClick={() => {
+              const values = ramp.steps.map((step) => maxP3Chroma(step.oklch.l, step.oklch.h));
+              setChromaCurveValues(scale.id, values);
+            }}
+            style={{
+              flex: 1,
+              padding: '5px 8px',
+              fontSize: 12,
+              background: 'var(--p-bg)',
+              border: '1px solid var(--p-border)',
+              borderRadius: 6,
+              color: 'var(--p-text-secondary)',
+              cursor: 'pointer',
+            }}
+          >
+            Pin to P3
+          </button>
         </div>
       </div>
 

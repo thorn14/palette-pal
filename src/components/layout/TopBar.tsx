@@ -54,17 +54,6 @@ const linkBtnStyle: React.CSSProperties = {
   textUnderlineOffset: 2,
 };
 
-const compactBtnStyle: React.CSSProperties = {
-  padding: '3px 10px',
-  fontSize: 12,
-  fontWeight: 500,
-  background: 'var(--p-bg)',
-  border: '1px solid var(--p-border)',
-  borderRadius: 5,
-  color: 'var(--p-text)',
-  cursor: 'pointer',
-  whiteSpace: 'nowrap',
-};
 
 export function TopBar({ onExport, onSave, onEditSteps, onEditLightness, mode, onModeChange, theme, onThemeChange, saveStatus }: Props) {
   const updateStepNamingAll = usePaletteStore((s) => s.updateStepNamingAll);
