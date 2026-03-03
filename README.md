@@ -1,5 +1,7 @@
 # palette-pal
 
+![Sample color ramp](sample.png)
+
 A color palette generator built with React, Vite, and TypeScript. Create, customize, and export design-token-ready color ramps with WCAG contrast analysis.
 
 ## Features
