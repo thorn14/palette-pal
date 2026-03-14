@@ -8,6 +8,7 @@ type AppTheme = 'light' | 'dark';
 
 interface Props {
   onExport: () => void;
+  onImport: () => void;
   onSave: () => void;
   onEditSteps: () => void;
   onEditLightness: () => void;
@@ -55,7 +56,7 @@ const linkBtnStyle: React.CSSProperties = {
 };
 
 
-export function TopBar({ onExport, onSave, onEditSteps, onEditLightness, mode, onModeChange, theme, onThemeChange, saveStatus }: Props) {
+export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightness, mode, onModeChange, theme, onThemeChange, saveStatus }: Props) {
   const updateStepNamingAll = usePaletteStore((s) => s.updateStepNamingAll);
   const applyLightnessPreset = usePaletteStore((s) => s.applyLightnessPreset);
   const scale = usePaletteStore(selectActiveScale);
@@ -309,6 +310,22 @@ export function TopBar({ onExport, onSave, onEditSteps, onEditLightness, mode, o
               <button
                 onClick={() => {
                   setMenuOpen(false);
+                  onImport();
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  textAlign: 'left',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                Import
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
                   onExport();
                 }}
                 style={{
@@ -319,9 +336,9 @@ export function TopBar({ onExport, onSave, onEditSteps, onEditLightness, mode, o
                   border: 'none',
                   cursor: 'pointer',
                 }}
-            >
-              Export
-            </button>
+              >
+                Export
+              </button>
           </div>
         )}
       </div>

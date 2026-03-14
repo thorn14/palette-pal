@@ -3,6 +3,7 @@ import { immer } from 'zustand/middleware/immer';
 import type { ColorScale, PaletteState, StepNamingConfig, StepNamingPreset } from '../types/palette';
 import { hexToOklch, buildDefaultCurves, buildChromaCurve, oklchToHex } from '../lib/colorMath';
 import { buildLightnessValues, resolveStepNames, type LightnessPreset } from '../constants/stepPresets';
+import type { ImportedScale } from '../lib/importTokens';
 import initialConfig from '../color-tokens.json';
 
 // nanoid is a small dep, but we can also just use crypto.randomUUID
@@ -37,6 +38,7 @@ interface PaletteActions {
   setChromaCurveValues: (id: string, values: number[]) => void;
   setFocusedStep: (ref: { scaleId: string; stepName: string } | null) => void;
   bulkCreateScales: (scales: Array<{ sourceHex: string; name: string }>, namingPreset: StepNamingPreset, lightnessPreset: LightnessPreset) => void;
+  importScales: (imported: ImportedScale[], replace: boolean) => void;
 }
 
 const DEFAULT_HEX = '#1894f8';
@@ -479,6 +481,50 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
         state.scales.push(scale);
       }
       state.activeScaleId = state.scales[0]?.id ?? null;
+    }),
+
+    importScales: (imported, replace) => set((state) => {
+      if (replace) state.scales = [];
+
+      for (const imp of imported) {
+        const stepCount = imp.steps.length;
+        const sourceOklch = imp.sourceOklch;
+        const normalizedHex = oklchToHex(sourceOklch);
+
+        const lightnessValues = imp.steps.map((s) => s.oklch.l);
+        const chromaValues = imp.steps.map((s) => s.oklch.c);
+        const hueValues = imp.steps.map((s) => {
+          const delta = s.oklch.h - sourceOklch.h;
+          const wrapped = ((delta % 360) + 540) % 360 - 180;
+          return wrapped;
+        });
+
+        const maxC = Math.max(...chromaValues, 0.001);
+
+        const scale: ColorScale = {
+          id: uid(),
+          name: imp.name,
+          sourceHex: normalizedHex,
+          sourceOklch,
+          sourceAlpha: sourceOklch.alpha ?? 1,
+          stepCount,
+          naming: { preset: 'custom', customNames: imp.steps.map((s) => s.name) },
+          curves: {
+            lightness: { values: lightnessValues },
+            chroma: { values: chromaValues },
+            hue: { values: hueValues },
+          },
+          hueShift: { lightEndAdjust: 0, darkEndAdjust: 0 },
+          lightnessPreset: 'custom',
+          chromaPeak: maxC,
+        };
+
+        state.scales.push(scale);
+      }
+
+      if (!state.activeScaleId || replace) {
+        state.activeScaleId = state.scales[0]?.id ?? null;
+      }
     }),
   }))
 );

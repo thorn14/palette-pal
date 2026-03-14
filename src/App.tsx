@@ -6,6 +6,7 @@ import { CurveOverlayEditor } from './components/curves/CurveOverlayEditor';
 import { PalettePreview } from './components/preview/PalettePreview';
 import { PaletteColorWheel } from './components/visualize/PaletteColorWheel';
 import { ExportModal } from './components/export/ExportModal';
+import { ImportModal } from './components/export/ImportModal';
 import { StepListModal } from './components/steps/StepListModal';
 import { BulkCreatePanel } from './components/setup/BulkCreatePanel';
 import { usePaletteStore, selectActiveScale } from './store/paletteStore';
@@ -39,6 +40,7 @@ function EditPanel({ scale }: { scale: ColorScale }) {
 
 export default function App() {
   const [showExport, setShowExport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
   const [showLightness, setShowLightness] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -83,6 +85,7 @@ export default function App() {
     >
       <TopBar
         onExport={() => setShowExport(true)}
+        onImport={() => setShowImport(true)}
         onSave={handleSave}
         onEditSteps={() => setShowSteps(true)}
         onEditLightness={() => setShowLightness(true)}
@@ -109,6 +112,7 @@ export default function App() {
       </div>
 
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}
+      {showImport && <ImportModal onClose={() => setShowImport(false)} />}
       {showSteps && scale && <StepListModal scale={scale} mode="names" applyToAll onClose={() => setShowSteps(false)} />}
       {showLightness && scale && <StepListModal scale={scale} mode="lightness" onClose={() => setShowLightness(false)} />}
     </div>

@@ -60,6 +60,12 @@ export interface PaletteState {
   focusedStepRef: { scaleId: string; stepName: string } | null;
 }
 
-// W3C Design Tokens format
-export interface W3CTokenValue { $value: string; $type: 'color'; $description?: string }
+// W3C DTCG 2025.10 color value format
+export interface W3CColorValue {
+  colorSpace: string;
+  components: (number | 'none')[];
+  alpha?: number;
+  hex?: string;
+}
+export interface W3CTokenValue { $value: W3CColorValue; $type?: 'color'; $description?: string }
 export type W3CTokenGroup = { [k: string]: W3CTokenValue | W3CTokenGroup }
