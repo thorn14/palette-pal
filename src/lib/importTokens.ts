@@ -86,12 +86,18 @@ function hexToOklchSafe(hex: string): OklchColor {
 }
 
 function isToken(obj: Record<string, unknown>): boolean {
-  return '$value' in obj;
+  return '$value' in obj || 'value' in obj;
 }
 
 function inheritsColorType(obj: Record<string, unknown>, parentType?: string): string | undefined {
   if (typeof obj.$type === 'string') return obj.$type;
+  if (typeof obj.type === 'string') return obj.type;
   return parentType;
+}
+
+function getTokenValue(obj: Record<string, unknown>): unknown {
+  if ('$value' in obj) return obj.$value;
+  return obj.value;
 }
 
 /**
@@ -117,7 +123,7 @@ function collectColorGroups(
       const tokenType = inheritsColorType(value, groupType);
       if (tokenType !== 'color') continue;
 
-      const hex = resolveHexFromValue(value.$value);
+      const hex = resolveHexFromValue(getTokenValue(value));
       if (!hex) continue;
 
       localTokens.push({
