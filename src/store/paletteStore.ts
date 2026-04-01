@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { current } from 'immer';
 import type { ColorScale, PaletteState, StepNamingConfig, StepNamingPreset } from '../types/palette';
-import { hexToOklch, buildDefaultCurves, buildChromaCurve, oklchToHex } from '../lib/colorMath';
+import { hexToOklch, buildDefaultCurves, buildChromaCurve, oklchToHex, computeHueShift } from '../lib/colorMath';
 import { buildLightnessValues, resolveStepNames, type LightnessPreset } from '../constants/stepPresets';
 import type { ImportedScale } from '../lib/importTokens';
 import initialConfig from '../color-tokens.json';
@@ -11,6 +12,11 @@ function uid(): string {
   return typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
+}
+
+interface HistorySnapshot {
+  scales: ColorScale[];
+  activeScaleId: string | null;
 }
 
 interface PaletteActions {
@@ -39,6 +45,34 @@ interface PaletteActions {
   setFocusedStep: (ref: { scaleId: string; stepName: string } | null) => void;
   bulkCreateScales: (scales: Array<{ sourceHex: string; name: string }>, namingPreset: StepNamingPreset, lightnessPreset: LightnessPreset) => void;
   importScales: (imported: ImportedScale[], replace: boolean) => void;
+  // Undo / redo
+  undo: () => void;
+  redo: () => void;
+  beginCurveEdit: (id: string) => void;
+  // Duplicate
+  duplicateScale: (id: string) => void;
+  // Bulk select
+  toggleSelectScale: (id: string) => void;
+  selectAllScales: () => void;
+  clearSelection: () => void;
+  removeSelectedScales: () => void;
+}
+
+interface InternalState {
+  _past: HistorySnapshot[];
+  _future: HistorySnapshot[];
+  selectedScaleIds: string[];
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function pushHistory(state: any) {
+  const snapshot: HistorySnapshot = {
+    scales: current(state.scales) as ColorScale[],
+    activeScaleId: state.activeScaleId,
+  };
+  state._past.push(snapshot);
+  if (state._past.length > 100) state._past.shift();
+  state._future = [];
 }
 
 const DEFAULT_HEX = '#1894f8';
@@ -200,11 +234,15 @@ function loadInitialState(): PaletteState {
   };
 }
 
-export const usePaletteStore = create<PaletteState & PaletteActions>()(
+export const usePaletteStore = create<PaletteState & PaletteActions & InternalState>()(
   immer((set) => ({
     ...loadInitialState(),
+    _past: [] as HistorySnapshot[],
+    _future: [] as HistorySnapshot[],
+    selectedScaleIds: [] as string[],
 
     addScale: (sourceHex, name) => set((state) => {
+      pushHistory(state);
       const scale = makeDefaultScale(sourceHex, name ?? `Color ${state.scales.length + 1}`);
 
       // Inherit naming + step count from existing scales so all ramps stay in sync
@@ -222,6 +260,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     }),
 
     removeScale: (id) => set((state) => {
+      pushHistory(state);
       state.scales = state.scales.filter((s) => s.id !== id);
       if (state.activeScaleId === id) {
         state.activeScaleId = state.scales[0]?.id ?? null;
@@ -230,6 +269,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
 
     reorderScales: (fromIndex, toIndex) => set((state) => {
       if (fromIndex === toIndex) return;
+      pushHistory(state);
       const [item] = state.scales.splice(fromIndex, 1);
       state.scales.splice(toIndex, 0, item);
     }),
@@ -241,6 +281,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     updateSourceHex: (id, hex) => set((state) => {
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
+      pushHistory(state);
       try {
         const sourceOklch = hexToOklch(hex);
         scale.sourceHex = oklchToHex(sourceOklch);
@@ -262,22 +303,26 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     }),
 
     updateScaleName: (id, name) => set((state) => {
+      pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (scale) scale.name = name;
     }),
 
     updateStepNaming: (id, naming) => set((state) => {
+      pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (scale) scale.naming = naming;
     }),
 
     updateStepNamingAll: (naming) => set((state) => {
+      pushHistory(state);
       for (const scale of state.scales) {
         scale.naming = naming;
       }
     }),
 
     updateStepName: (id, index, name) => set((state) => {
+      pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       const names = normalizeNames(scale);
@@ -287,6 +332,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     }),
 
     insertStepAt: (id, index, name) => set((state) => {
+      pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       const names = normalizeNames(scale);
@@ -315,6 +361,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     }),
 
     removeStepAt: (id, index) => set((state) => {
+      pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       const names = normalizeNames(scale);
@@ -344,6 +391,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     }),
 
     setLightnessList: (id, values) => set((state) => {
+      pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       const clampedValues = values.map((v) => Math.max(0, Math.min(1, v)));
@@ -365,6 +413,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     }),
 
     setStepList: (id, names) => set((state) => {
+      pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       const cleaned = names.map((n) => n.trim()).filter(Boolean);
@@ -377,6 +426,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     }),
 
     setStepsAll: (names) => set((state) => {
+      pushHistory(state);
       const cleaned = names.map((n) => n.trim()).filter(Boolean);
       if (!cleaned.length) return;
       for (const scale of state.scales) {
@@ -389,6 +439,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     }),
 
     setStepsAndLightness: (id, names, lightness) => set((state) => {
+      pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       const nextNames = names && names.length ? names.map((n) => n.trim()).filter(Boolean) : null;
@@ -428,6 +479,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     }),
     
     setLightnessAll: (values) => set((state) => {
+      pushHistory(state);
       const cleaned = values.length ? values.map((v) => Math.max(0, Math.min(1, v))) : [];
       if (!cleaned.length) return;
       for (const scale of state.scales) {
@@ -437,11 +489,13 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     }),
 
     updateHueShift: (id, end, value) => set((state) => {
+      pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (scale) scale.hueShift[end] = value;
     }),
 
     applyLightnessPreset: (id, preset) => set((state) => {
+      pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       if (preset === 'custom') {
@@ -453,6 +507,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     }),
 
     updateChromaPeak: (id, peak) => set((state) => {
+      pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       const clamped = Math.max(0, Math.min(0.4, peak));
@@ -461,6 +516,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     }),
 
     setChromaCurveValues: (id, values) => set((state) => {
+      pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       scale.curves.chroma.values = values.slice(0, scale.stepCount);
@@ -471,6 +527,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     }),
 
     bulkCreateScales: (scaleInputs, namingPreset, lightnessPreset) => set((state) => {
+      pushHistory(state);
       for (const { sourceHex, name } of scaleInputs) {
         const scale = makeDefaultScale(sourceHex, name);
         scale.naming = { preset: namingPreset };
@@ -484,6 +541,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     }),
 
     importScales: (imported, replace) => set((state) => {
+      pushHistory(state);
       if (replace) state.scales = [];
 
       for (const imp of imported) {
@@ -493,10 +551,14 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
 
         const lightnessValues = imp.steps.map((s) => s.oklch.l);
         const chromaValues = imp.steps.map((s) => s.oklch.c);
-        const hueValues = imp.steps.map((s) => {
+        const hueValues = imp.steps.map((s, idx) => {
+          // Compute the auto hue shift that generateRamp will add at this step position,
+          // then subtract it so the net result equals the token's actual hue.
+          const t = imp.steps.length === 1 ? 0 : idx / (imp.steps.length - 1);
+          const autoShift = computeHueShift(sourceOklch.h, t, 0, 0);
           const delta = s.oklch.h - sourceOklch.h;
           const wrapped = ((delta % 360) + 540) % 360 - 180;
-          return wrapped;
+          return wrapped - autoShift;
         });
 
         const maxC = Math.max(...chromaValues, 0.001);
@@ -526,9 +588,92 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
         state.activeScaleId = state.scales[0]?.id ?? null;
       }
     }),
+
+    undo: () => set((state) => {
+      const snapshot = state._past.pop();
+      if (!snapshot) return;
+      state._future.push({
+        scales: current(state.scales) as ColorScale[],
+        activeScaleId: state.activeScaleId,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      state.scales = snapshot.scales as any;
+      state.activeScaleId = snapshot.activeScaleId;
+    }),
+
+    redo: () => set((state) => {
+      const snapshot = state._future.pop();
+      if (!snapshot) return;
+      state._past.push({
+        scales: current(state.scales) as ColorScale[],
+        activeScaleId: state.activeScaleId,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      state.scales = snapshot.scales as any;
+      state.activeScaleId = snapshot.activeScaleId;
+    }),
+
+    beginCurveEdit: (_id: string) => set((state) => {
+      pushHistory(state);
+    }),
+
+    duplicateScale: (id) => set((state) => {
+      pushHistory(state);
+      const original = state.scales.find((s) => s.id === id);
+      if (!original) return;
+      const plain = current(original) as ColorScale;
+      const clone: ColorScale = {
+        ...plain,
+        id: uid(),
+        name: `${plain.name} (copy)`,
+        curves: {
+          lightness: { values: plain.curves.lightness.values.slice() },
+          chroma: { values: plain.curves.chroma.values.slice() },
+          hue: { values: plain.curves.hue.values.slice() },
+        },
+      };
+      const idx = state.scales.findIndex((s) => s.id === id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      state.scales.splice(idx + 1, 0, clone as any);
+      state.activeScaleId = clone.id;
+    }),
+
+    toggleSelectScale: (id) => set((state) => {
+      const idx = state.selectedScaleIds.indexOf(id);
+      if (idx === -1) {
+        state.selectedScaleIds.push(id);
+      } else {
+        state.selectedScaleIds.splice(idx, 1);
+      }
+    }),
+
+    selectAllScales: () => set((state) => {
+      state.selectedScaleIds = state.scales.map((s) => s.id);
+    }),
+
+    clearSelection: () => set((state) => {
+      state.selectedScaleIds = [];
+    }),
+
+    removeSelectedScales: () => set((state) => {
+      if (state.selectedScaleIds.length === 0) return;
+      pushHistory(state);
+      const ids = new Set(state.selectedScaleIds);
+      state.scales = state.scales.filter((s) => !ids.has(s.id));
+      state.selectedScaleIds = [];
+      if (state.activeScaleId && ids.has(state.activeScaleId)) {
+        state.activeScaleId = state.scales[0]?.id ?? null;
+      }
+    }),
   }))
 );
 
 // Selector helpers
-export const selectActiveScale = (state: PaletteState & PaletteActions): ColorScale | undefined =>
+export const selectActiveScale = (state: PaletteState & PaletteActions & InternalState): ColorScale | undefined =>
   state.scales.find((s) => s.id === (state.activeScaleId ?? state.scales[0]?.id));
+
+export const selectCanUndo = (state: PaletteState & PaletteActions & InternalState): boolean =>
+  state._past.length > 0;
+
+export const selectCanRedo = (state: PaletteState & PaletteActions & InternalState): boolean =>
+  state._future.length > 0;

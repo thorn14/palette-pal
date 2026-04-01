@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TopBar } from './components/layout/TopBar';
 import { Sidebar } from './components/layout/Sidebar';
 import { RightPanel } from './components/layout/RightPanel';
@@ -48,6 +48,24 @@ export default function App() {
   const [theme, setTheme] = useState<AppTheme>('dark');
   const scale = usePaletteStore(selectActiveScale);
   const scales = usePaletteStore((s) => s.scales);
+  const undo = usePaletteStore((s) => s.undo);
+  const redo = usePaletteStore((s) => s.redo);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        redo();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
 
   async function handleSave() {
     setSaveStatus('saving');

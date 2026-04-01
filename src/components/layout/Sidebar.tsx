@@ -18,26 +18,42 @@ function GripIcon() {
   );
 }
 
+function DuplicateIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="5" width="9" height="9" rx="1.5" />
+      <path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2H3.5A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" />
+    </svg>
+  );
+}
+
 function ScaleItem({
   scale,
   isActive,
+  isSelected,
   isDragging,
   onClick,
   onDragStart,
   onDragOver,
   onDrop,
   onDragEnd,
+  onToggleSelect,
+  onDuplicate,
 }: {
   scale: ColorScale;
   isActive: boolean;
+  isSelected: boolean;
   isDragging: boolean;
   onClick: () => void;
   onDragStart: () => void;
   onDragOver: () => void;
   onDrop: () => void;
   onDragEnd: () => void;
+  onToggleSelect: () => void;
+  onDuplicate: () => void;
 }) {
   const ramp = useGeneratedRamp(scale);
+  const [hovered, setHovered] = useState(false);
 
   return (
     <div
@@ -46,6 +62,8 @@ function ScaleItem({
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver(); }}
       onDrop={(e) => { e.preventDefault(); onDrop(); }}
       onDragEnd={onDragEnd}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       onClick={onClick}
       style={{
         display: 'flex',
@@ -53,14 +71,42 @@ function ScaleItem({
         gap: 4,
         padding: '8px 8px 8px 4px',
         borderRadius: 6,
-        background: isActive ? 'var(--p-bg-inset)' : 'transparent',
-        border: `1px solid ${isActive ? 'var(--p-border)' : 'transparent'}`,
+        background: isSelected
+          ? 'var(--p-accent-subtle, rgba(99,102,241,0.12))'
+          : isActive
+            ? 'var(--p-bg-inset)'
+            : 'transparent',
+        border: `1px solid ${isSelected ? 'var(--p-accent, #6366f1)' : isActive ? 'var(--p-border)' : 'transparent'}`,
         opacity: isDragging ? 0.35 : 1,
         cursor: 'grab',
         transition: 'opacity 0.1s',
         userSelect: 'none',
+        position: 'relative',
       }}
     >
+      {/* Checkbox */}
+      <div
+        onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
+        style={{
+          flexShrink: 0,
+          width: 14,
+          height: 14,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: hovered || isSelected ? 1 : 0,
+          transition: 'opacity 0.1s',
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={onToggleSelect}
+          onClick={(e) => e.stopPropagation()}
+          style={{ width: 12, height: 12, cursor: 'pointer', margin: 0, accentColor: 'var(--p-accent, #6366f1)' }}
+        />
+      </div>
+
       {/* Grip handle */}
       <div style={{ color: 'var(--p-text-tertiary)', flexShrink: 0, padding: '0 2px', lineHeight: 0 }}>
         <GripIcon />
@@ -90,6 +136,32 @@ function ScaleItem({
           ))}
         </div>
       </div>
+
+      {/* Duplicate button */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+        title="Duplicate scale"
+        style={{
+          flexShrink: 0,
+          width: 22,
+          height: 22,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'none',
+          border: 'none',
+          borderRadius: 4,
+          cursor: 'pointer',
+          color: 'var(--p-text-tertiary)',
+          opacity: hovered ? 1 : 0,
+          transition: 'opacity 0.1s, color 0.1s',
+          padding: 0,
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--p-text)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--p-text-tertiary)')}
+      >
+        <DuplicateIcon />
+      </button>
     </div>
   );
 }
@@ -97,14 +169,21 @@ function ScaleItem({
 export function Sidebar() {
   const scales = usePaletteStore((s) => s.scales);
   const activeScaleId = usePaletteStore((s) => s.activeScaleId);
+  const selectedScaleIds = usePaletteStore((s) => s.selectedScaleIds);
   const setActiveScale = usePaletteStore((s) => s.setActiveScale);
   const addScale = usePaletteStore((s) => s.addScale);
   const reorderScales = usePaletteStore((s) => s.reorderScales);
+  const duplicateScale = usePaletteStore((s) => s.duplicateScale);
+  const toggleSelectScale = usePaletteStore((s) => s.toggleSelectScale);
+  const selectAllScales = usePaletteStore((s) => s.selectAllScales);
+  const clearSelection = usePaletteStore((s) => s.clearSelection);
+  const removeSelectedScales = usePaletteStore((s) => s.removeSelectedScales);
   const [newHex, setNewHex] = useState('#6366f1');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const effectiveActiveId = activeScaleId ?? scales[0]?.id;
+  const hasSelection = selectedScaleIds.length > 0;
 
   return (
     <aside
@@ -128,10 +207,64 @@ export function Sidebar() {
           textTransform: 'uppercase',
           letterSpacing: '0.05em',
           color: 'var(--p-text-secondary)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
         }}
       >
-        Scales
+        <span>Scales</span>
+        {scales.length > 0 && (
+          <button
+            onClick={hasSelection ? clearSelection : selectAllScales}
+            style={{
+              padding: 0,
+              fontSize: 10,
+              background: 'none',
+              border: 'none',
+              color: 'var(--p-text-tertiary)',
+              cursor: 'pointer',
+              textTransform: 'none',
+              letterSpacing: 'normal',
+              fontWeight: 400,
+            }}
+          >
+            {hasSelection ? 'None' : 'All'}
+          </button>
+        )}
       </div>
+
+      {/* Bulk action bar */}
+      {hasSelection && (
+        <div
+          style={{
+            padding: '6px 12px',
+            borderBottom: '1px solid var(--p-border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 6,
+            background: 'var(--p-accent-subtle, rgba(99,102,241,0.08))',
+          }}
+        >
+          <span style={{ fontSize: 11, color: 'var(--p-text-secondary)' }}>
+            {selectedScaleIds.length} selected
+          </span>
+          <button
+            onClick={removeSelectedScales}
+            style={{
+              padding: '3px 8px',
+              fontSize: 11,
+              background: 'none',
+              border: '1px solid var(--p-danger, #ef4444)',
+              borderRadius: 4,
+              color: 'var(--p-danger, #ef4444)',
+              cursor: 'pointer',
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
 
       {/* Scale list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
@@ -167,6 +300,7 @@ export function Sidebar() {
                 <ScaleItem
                   scale={scale}
                   isActive={effectiveActiveId === scale.id}
+                  isSelected={selectedScaleIds.includes(scale.id)}
                   isDragging={dragIndex === i}
                   onClick={() => setActiveScale(scale.id)}
                   onDragStart={() => setDragIndex(i)}
@@ -180,6 +314,8 @@ export function Sidebar() {
                     setDragIndex(null);
                     setDragOverIndex(null);
                   }}
+                  onToggleSelect={() => toggleSelectScale(scale.id)}
+                  onDuplicate={() => duplicateScale(scale.id)}
                 />
               </div>
             );

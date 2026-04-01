@@ -31,6 +31,7 @@ interface Props {
 
 export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }: Props) {
   const updateCurveValue = usePaletteStore((s) => s.updateCurveValue);
+  const beginCurveEdit = usePaletteStore((s) => s.beginCurveEdit);
   const containerRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef(scale);
   useEffect(() => { scaleRef.current = scale; }, [scale]);
@@ -223,6 +224,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
                     style={{ cursor: 'ns-resize', pointerEvents: 'all' }}
                     onPointerDown={(e) => {
                       e.preventDefault();
+                      beginCurveEdit(scale.id);
                       setDragState({ curveKey: curve.key, stepIndex: i });
                     }}
                   />
