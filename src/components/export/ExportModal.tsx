@@ -56,12 +56,15 @@ function VirtualizedPre({ text }: { text: string }) {
               padding: '0 20px',
               fontSize: 12,
               fontFamily: 'monospace',
-              color: 'var(--p-text-secondary)',
               whiteSpace: 'pre',
               lineHeight: '18px',
+              display: 'flex',
             }}
           >
-            {lines[vItem.index]}
+            <span style={{ display: 'inline-block', width: 44, textAlign: 'right', marginRight: 12, color: 'var(--p-text-tertiary)', userSelect: 'none', flexShrink: 0 }}>
+              {vItem.index + 1}
+            </span>
+            <span style={{ color: 'var(--p-text-secondary)' }}>{lines[vItem.index]}</span>
           </div>
         ))}
       </div>
@@ -83,14 +86,14 @@ export function ExportModal({ onClose }: Props) {
   const scales = usePaletteStore((s) => s.scales);
   const ramps = useMemo(() => scales.map((scale) => generateRamp(scale)), [scales]);
 
-  const tokensJson = useMemo(() => exportToJSON(ramps), [ramps]);
-  const wcagJson = useMemo(() => exportWcagContrastMapJSON(ramps), [ramps]);
-  const apcaJson = useMemo(() => exportApcaContrastMapJSON(ramps), [ramps]);
-
   const [activeTab, setActiveTab] = useState<Tab>('tokens');
   const [copied, setCopied] = useState(false);
 
-  const json = activeTab === 'tokens' ? tokensJson : activeTab === 'contrast-wcag' ? wcagJson : apcaJson;
+  const json = useMemo(() => {
+    if (activeTab === 'tokens') return exportToJSON(ramps);
+    if (activeTab === 'contrast-wcag') return exportWcagContrastMapJSON(ramps);
+    return exportApcaContrastMapJSON(ramps);
+  }, [ramps, activeTab]);
   const downloadName =
     activeTab === 'tokens' ? 'design-tokens.json'
     : activeTab === 'contrast-wcag' ? 'contrast-map-wcag.json'
@@ -228,7 +231,7 @@ export function ExportModal({ onClose }: Props) {
           {activeTab === 'tokens' && (
             <>
               <button
-                onClick={() => downloadJSON(wcagJson, 'contrast-map-wcag.json')}
+                onClick={() => downloadJSON(exportWcagContrastMapJSON(ramps), 'contrast-map-wcag.json')}
                 style={{
                   padding: '6px 14px',
                   fontSize: 12,
@@ -242,7 +245,7 @@ export function ExportModal({ onClose }: Props) {
                 + WCAG Map
               </button>
               <button
-                onClick={() => downloadJSON(apcaJson, 'contrast-map-apca.json')}
+                onClick={() => downloadJSON(exportApcaContrastMapJSON(ramps), 'contrast-map-apca.json')}
                 style={{
                   padding: '6px 14px',
                   fontSize: 12,

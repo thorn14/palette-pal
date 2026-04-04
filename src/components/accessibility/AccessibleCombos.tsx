@@ -352,9 +352,9 @@ export function AccessibleCombos() {
                     top: vRow.start,
                     left: 0,
                     right: 0,
-                    display: 'flex',
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${COLS}, 1fr)`,
                     gap: ROW_GAP,
-                    flexWrap: 'wrap',
                   }}
                 >
                   {contrastMode === 'wcag'

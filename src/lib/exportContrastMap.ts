@@ -1,81 +1,98 @@
-import { getContrast, getApcaContrast } from './colorMath';
-import type { GeneratedRamp, WcagMapEntry, ApcaMapEntry } from '../types/palette';
+import { wcagContrast, parse, converter } from 'culori';
+import { APCAcontrast, sRGBtoY } from 'apca-w3';
+import type { GeneratedRamp, ContrastMapColorRef } from '../types/palette';
 
-interface ContrastMapMeta {
+const toRgb = converter('rgb');
+
+interface ColorEntry { ramp: string; step: string; hex: string }
+
+interface WcagMatrixExport {
   version: string;
   generated: string;
-  totalRamps: number;
-  totalSteps: number;
+  type: 'wcag';
+  colors: ColorEntry[];
+  matrix: (number | null)[][];
+  thresholds: { 'aa-large': number; aa: number; aaa: number };
 }
 
-export interface WcagContrastMap extends ContrastMapMeta {
-  wcag: { 'aa-large': WcagMapEntry[]; aa: WcagMapEntry[]; aaa: WcagMapEntry[] };
+interface ApcaMatrixExport {
+  version: string;
+  generated: string;
+  type: 'apca';
+  colors: ColorEntry[];
+  matrix: (number | null)[][];
+  thresholds: { lc45: number; lc60: number; lc75: number };
 }
 
-export interface ApcaContrastMap extends ContrastMapMeta {
-  apca: { lc45: ApcaMapEntry[]; lc60: ApcaMapEntry[]; lc75: ApcaMapEntry[] };
-}
-
-function buildSteps(ramps: GeneratedRamp[]) {
+function buildSteps(ramps: GeneratedRamp[]): ColorEntry[] {
   return ramps.flatMap((r) =>
     r.steps.map((s) => ({ ramp: r.scaleName, step: s.name, hex: s.hex }))
   );
 }
 
-function meta(ramps: GeneratedRamp[], totalSteps: number): ContrastMapMeta {
+function precomputeApcaY(steps: ContrastMapColorRef[]): number[] {
+  return steps.map((s) => {
+    const rgb = toRgb(parse(s.hex));
+    if (!rgb) return 0;
+    return sRGBtoY([(rgb.r ?? 0) * 255, (rgb.g ?? 0) * 255, (rgb.b ?? 0) * 255]);
+  });
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+export function buildWcagContrastMatrix(ramps: GeneratedRamp[]): WcagMatrixExport {
+  const colors = buildSteps(ramps);
+  const n = colors.length;
+  const matrix: (number | null)[][] = Array.from({ length: n }, () => new Array(n).fill(null));
+
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (i === j || colors[i].hex === colors[j].hex) continue;
+      const ratio = wcagContrast(colors[i].hex, colors[j].hex);
+      if (ratio >= 3) matrix[i][j] = round2(ratio);
+    }
+  }
+
   return {
     version: '1.0',
     generated: new Date().toISOString(),
-    totalRamps: ramps.length,
-    totalSteps,
+    type: 'wcag',
+    colors,
+    matrix,
+    thresholds: { 'aa-large': 3, aa: 4.5, aaa: 7 },
   };
 }
 
-export function buildWcagContrastMap(ramps: GeneratedRamp[]): WcagContrastMap {
-  const allSteps = buildSteps(ramps);
-  const wcag: WcagContrastMap['wcag'] = { 'aa-large': [], aa: [], aaa: [] };
+export function buildApcaContrastMatrix(ramps: GeneratedRamp[]): ApcaMatrixExport {
+  const colors = buildSteps(ramps);
+  const n = colors.length;
+  const yValues = precomputeApcaY(colors);
+  const matrix: (number | null)[][] = Array.from({ length: n }, () => new Array(n).fill(null));
 
-  for (const fg of allSteps) {
-    for (const bg of allSteps) {
-      if (fg.hex === bg.hex) continue;
-      const wcagResult = getContrast(fg.hex, bg.hex);
-      if (wcagResult.level !== 'fail') {
-        const entry: WcagMapEntry = { fg, bg, ratio: Math.round(wcagResult.ratio * 100) / 100 };
-        if (wcagResult.ratio >= 7) wcag.aaa.push(entry);
-        else if (wcagResult.ratio >= 4.5) wcag.aa.push(entry);
-        else wcag['aa-large'].push(entry);
-      }
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (i === j || colors[i].hex === colors[j].hex) continue;
+      const lc = APCAcontrast(yValues[i], yValues[j]) as number;
+      if (Math.abs(lc) >= 45) matrix[i][j] = round2(lc);
     }
   }
 
-  return { ...meta(ramps, allSteps.length), wcag };
-}
-
-export function buildApcaContrastMap(ramps: GeneratedRamp[]): ApcaContrastMap {
-  const allSteps = buildSteps(ramps);
-  const apca: ApcaContrastMap['apca'] = { lc45: [], lc60: [], lc75: [] };
-
-  for (const fg of allSteps) {
-    for (const bg of allSteps) {
-      if (fg.hex === bg.hex) continue;
-      const lc = getApcaContrast(fg.hex, bg.hex);
-      const absLc = Math.abs(lc);
-      if (absLc >= 45) {
-        const entry: ApcaMapEntry = { fg, bg, lc: Math.round(lc * 100) / 100 };
-        if (absLc >= 75) apca.lc75.push(entry);
-        else if (absLc >= 60) apca.lc60.push(entry);
-        else apca.lc45.push(entry);
-      }
-    }
-  }
-
-  return { ...meta(ramps, allSteps.length), apca };
+  return {
+    version: '1.0',
+    generated: new Date().toISOString(),
+    type: 'apca',
+    colors,
+    matrix,
+    thresholds: { lc45: 45, lc60: 60, lc75: 75 },
+  };
 }
 
 export function exportWcagContrastMapJSON(ramps: GeneratedRamp[]): string {
-  return JSON.stringify(buildWcagContrastMap(ramps), null, 2);
+  return JSON.stringify(buildWcagContrastMatrix(ramps), null, 2);
 }
 
 export function exportApcaContrastMapJSON(ramps: GeneratedRamp[]): string {
-  return JSON.stringify(buildApcaContrastMap(ramps), null, 2);
+  return JSON.stringify(buildApcaContrastMatrix(ramps), null, 2);
 }
