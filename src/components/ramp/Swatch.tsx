@@ -16,8 +16,8 @@ export function Swatch({ step, isActive, onClick }: Props) {
   const contrastMode = usePaletteStore((s) => s.contrastMode);
 
   if (contrastMode === 'apca') {
-    const lcWhite = getApcaContrast(step.hex, '#ffffff');
-    const lcBlack = getApcaContrast(step.hex, '#000000');
+    const lcWhite = getApcaContrast('#ffffff', step.hex);
+    const lcBlack = getApcaContrast('#000000', step.hex);
     const bestLc = Math.abs(lcBlack) >= Math.abs(lcWhite) ? lcBlack : lcWhite;
     const textColor = Math.abs(lcBlack) >= Math.abs(lcWhite) ? '#000000' : '#ffffff';
 
