@@ -17,6 +17,8 @@ interface Props {
   theme: AppTheme;
   onThemeChange: (theme: AppTheme) => void;
   saveStatus: 'idle' | 'saving' | 'saved' | 'error';
+  srgbPreview: boolean;
+  onToggleSrgbPreview: () => void;
 }
 
 const divider = (
@@ -56,7 +58,7 @@ const linkBtnStyle: React.CSSProperties = {
 };
 
 
-export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightness, mode, onModeChange, theme, onThemeChange, saveStatus }: Props) {
+export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightness, mode, onModeChange, theme, onThemeChange, saveStatus, srgbPreview, onToggleSrgbPreview }: Props) {
   const updateStepNamingAll = usePaletteStore((s) => s.updateStepNamingAll);
   const applyLightnessPreset = usePaletteStore((s) => s.applyLightnessPreset);
   const scale = usePaletteStore(selectActiveScale);
@@ -197,6 +199,26 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
           </button>
         ))}
       </div>
+
+      {divider}
+
+      <button
+        onClick={onToggleSrgbPreview}
+        title={srgbPreview ? 'Showing sRGB fallback colors — click to restore P3 wide-gamut rendering' : 'Preview how colors appear on sRGB displays (disables P3 wide-gamut rendering)'}
+        style={{
+          padding: '4px 10px',
+          fontSize: 12,
+          fontWeight: 500,
+          background: srgbPreview ? 'var(--p-bg-inset)' : 'var(--p-bg)',
+          border: '1px solid var(--p-border)',
+          borderRadius: 6,
+          color: srgbPreview ? 'var(--p-text)' : 'var(--p-text-secondary)',
+          cursor: 'pointer',
+          flexShrink: 0,
+        }}
+      >
+        sRGB
+      </button>
 
       <button
         onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')}

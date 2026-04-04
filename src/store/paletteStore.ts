@@ -39,6 +39,8 @@ interface PaletteActions {
   setFocusedStep: (ref: { scaleId: string; stepName: string } | null) => void;
   bulkCreateScales: (scales: Array<{ sourceHex: string; name: string }>, namingPreset: StepNamingPreset, lightnessPreset: LightnessPreset) => void;
   importScales: (imported: ImportedScale[], replace: boolean) => void;
+  srgbPreview: boolean;
+  toggleSrgbPreview: () => void;
 }
 
 const DEFAULT_HEX = '#1894f8';
@@ -203,6 +205,9 @@ function loadInitialState(): PaletteState {
 export const usePaletteStore = create<PaletteState & PaletteActions>()(
   immer((set) => ({
     ...loadInitialState(),
+
+    srgbPreview: false,
+    toggleSrgbPreview: () => set((state) => { state.srgbPreview = !state.srgbPreview; }),
 
     addScale: (sourceHex, name) => set((state) => {
       const scale = makeDefaultScale(sourceHex, name ?? `Color ${state.scales.length + 1}`);

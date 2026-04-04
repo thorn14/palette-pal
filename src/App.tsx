@@ -48,6 +48,8 @@ export default function App() {
   const [theme, setTheme] = useState<AppTheme>('dark');
   const scale = usePaletteStore(selectActiveScale);
   const scales = usePaletteStore((s) => s.scales);
+  const srgbPreview = usePaletteStore((s) => s.srgbPreview);
+  const toggleSrgbPreview = usePaletteStore((s) => s.toggleSrgbPreview);
 
   async function handleSave() {
     setSaveStatus('saving');
@@ -94,6 +96,8 @@ export default function App() {
         theme={theme}
         onThemeChange={setTheme}
         saveStatus={saveStatus}
+        srgbPreview={srgbPreview}
+        onToggleSrgbPreview={toggleSrgbPreview}
       />
 
       <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>

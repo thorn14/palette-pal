@@ -262,27 +262,87 @@ export function RightPanel({ scale, activeStep }: Props) {
       {/* Active step detail */}
       {activeStep && (
         <div style={sectionStyle}>
-          <SectionLabel>{activeStep.name}</SectionLabel>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <div
+          {/* Step name + gamut badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--p-text-secondary)', margin: 0 }}>
+              {activeStep.name}
+            </p>
+            <span
+              title={activeStep.gamut === 'p3'
+                ? 'Wide-gamut Display P3 color — appears more vivid on supported displays; hex is the sRGB fallback'
+                : 'Standard sRGB color — renders identically on all displays'}
               style={{
-                width: 32,
-                height: 32,
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '1px 5px',
                 borderRadius: 4,
-                backgroundColor: activeStep.hex,
-                border: '1px solid var(--p-border)',
-                flexShrink: 0,
+                background: activeStep.gamut === 'p3' ? '#78350f' : 'var(--p-bg-inset)',
+                color: activeStep.gamut === 'p3' ? '#fde68a' : 'var(--p-text-secondary)',
+                letterSpacing: '0.03em',
+                cursor: 'default',
               }}
-            />
-            <span style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--p-text)' }}>
-              {activeStep.hex}
+            >
+              {activeStep.gamut === 'p3' ? 'P3' : 'sRGB'}
             </span>
+          </div>
+
+          {/* Swatches */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0 }}>
+              <div
+                style={{ width: 32, height: activeStep.gamut === 'p3' ? 13 : 32, borderRadius: 3, backgroundColor: activeStep.hex, border: '1px solid var(--p-border)' }}
+                title="sRGB hex — safe fallback for all displays"
+              />
+              {activeStep.gamut === 'p3' && activeStep.displayP3 && (
+                <div
+                  style={{ width: 32, height: 13, borderRadius: 3, backgroundColor: activeStep.displayP3, border: '1px solid var(--p-border)' }}
+                  title="Display P3 — wide-gamut rendering on supported displays"
+                />
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {/* Hex row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 }}>
+                <span style={{ fontSize: 10, color: 'var(--p-text-secondary)', flexShrink: 0 }}>
+                  Hex (sRGB)
+                </span>
+                <span
+                  style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--p-text)', cursor: 'pointer' }}
+                  title="Click to copy"
+                  onClick={() => navigator.clipboard.writeText(activeStep.hex).catch(() => {})}
+                >
+                  {activeStep.hex}
+                </span>
+              </div>
+              {/* Display P3 row */}
+              {activeStep.gamut === 'p3' && activeStep.displayP3 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 4 }}>
+                  <span style={{ fontSize: 10, color: 'var(--p-text-secondary)', flexShrink: 0 }}>
+                    Display P3
+                  </span>
+                  <span
+                    style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--p-text)', cursor: 'pointer', textAlign: 'right', wordBreak: 'break-all' }}
+                    title="Click to copy"
+                    onClick={() => navigator.clipboard.writeText(activeStep.displayP3!).catch(() => {})}
+                  >
+                    {activeStep.displayP3}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* OKLCH */}
+          <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--p-text-tertiary)', marginBottom: 3 }}>
+            OKLCH
           </div>
           <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--p-text-secondary)', lineHeight: 1.8, marginBottom: 8 }}>
             <div>L {activeStep.oklch.l.toFixed(4)}</div>
             <div>C {activeStep.oklch.c.toFixed(4)}</div>
             <div>H {activeStep.oklch.h.toFixed(2)}°</div>
           </div>
+
+          {/* Contrast */}
           <div style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
             {[['#ffffff', 'on white'] as const, ['#000000', 'on black'] as const].map(([bg, label]) => {
               const c = getContrast(activeStep.hex, bg);

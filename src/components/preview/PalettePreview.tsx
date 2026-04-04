@@ -3,6 +3,8 @@ import { usePaletteStore } from '../../store/paletteStore';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import type { ColorScale, GeneratedStep } from '../../types/palette';
 
+const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
+
 function ColorSwatchTooltip({
   scale,
   step,
@@ -12,6 +14,7 @@ function ColorSwatchTooltip({
   step: GeneratedStep;
   onEditScale?: (scaleId: string) => void;
 }) {
+  const srgbPreview = usePaletteStore((s) => s.srgbPreview);
   const [visible, setVisible] = useState(false);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -35,7 +38,7 @@ function ColorSwatchTooltip({
     >
       <div
         style={{
-          backgroundColor: step.hex,
+          backgroundColor: (!srgbPreview && supportsP3 && step.displayP3) || step.hex,
           height: 48,
           cursor: onEditScale ? 'pointer' : 'default',
           borderRight: '1px solid var(--p-border)',

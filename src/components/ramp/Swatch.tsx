@@ -1,6 +1,7 @@
 import type { GeneratedStep } from '../../types/palette';
 import { getContrast } from '../../lib/colorMath';
 import { ContrastBadge } from '../accessibility/ContrastBadge';
+import { usePaletteStore } from '../../store/paletteStore';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function Swatch({ step, isActive, onClick }: Props) {
+  const srgbPreview = usePaletteStore((s) => s.srgbPreview);
   const contrastWhite = getContrast(step.hex, '#ffffff');
   const contrastBlack = getContrast(step.hex, '#000000');
   const textColor = contrastBlack.ratio > contrastWhite.ratio ? '#000000' : '#ffffff';
@@ -22,7 +24,7 @@ export function Swatch({ step, isActive, onClick }: Props) {
       className={`flex flex-col items-start justify-end p-2 rounded transition-all cursor-pointer
         ${isActive ? 'ring-2 ring-white ring-offset-2 ring-offset-neutral-900 scale-105' : 'hover:scale-[1.03]'}
       `}
-      style={{ backgroundColor: (supportsP3 && step.displayP3) || step.hex, minHeight: '80px', minWidth: '64px' }}
+      style={{ backgroundColor: (!srgbPreview && supportsP3 && step.displayP3) || step.hex, minHeight: '80px', minWidth: '64px' }}
       title={`${step.name}: ${step.hex}`}
     >
       <span className="text-[10px] font-mono font-medium leading-tight" style={{ color: textColor }}>
