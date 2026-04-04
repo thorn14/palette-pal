@@ -57,19 +57,26 @@ export function buildCurvePath(
     m[i] = (d[i - 1] + d[i]) / 2;
   }
 
-  // Fritsch–Carlson monotonicity constraints (smooth nodes only)
+  // Fritsch–Carlson monotonicity constraints.
+  // Treat corner nodes as hard boundaries: their effective tangents are
+  // replaced later with segment chord slopes, so they must not participate
+  // in scaling decisions for neighboring smooth tangents.
   for (let i = 0; i < n - 1; i++) {
+    const leftType = nodeTypes[i] ?? 'smooth';
+    const rightType = nodeTypes[i + 1] ?? 'smooth';
+    if (leftType === 'corner' || rightType === 'corner') continue;
+
     if (Math.abs(d[i]) < 1e-10) {
-      if ((nodeTypes[i] ?? 'smooth') === 'smooth') m[i] = 0;
-      if ((nodeTypes[i + 1] ?? 'smooth') === 'smooth') m[i + 1] = 0;
+      m[i] = 0;
+      m[i + 1] = 0;
     } else {
       const alpha = m[i] / d[i];
       const beta = m[i + 1] / d[i];
       const r = alpha * alpha + beta * beta;
       if (r > 9) {
         const t = 3 / Math.sqrt(r);
-        if ((nodeTypes[i] ?? 'smooth') === 'smooth') m[i] = t * alpha * d[i];
-        if ((nodeTypes[i + 1] ?? 'smooth') === 'smooth') m[i + 1] = t * beta * d[i];
+        m[i] = t * alpha * d[i];
+        m[i + 1] = t * beta * d[i];
       }
     }
   }
