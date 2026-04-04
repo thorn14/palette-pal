@@ -31,6 +31,7 @@ interface Props {
 
 export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }: Props) {
   const updateCurveValue = usePaletteStore((s) => s.updateCurveValue);
+  const srgbPreview = usePaletteStore((s) => s.srgbPreview);
   const containerRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef(scale);
   useEffect(() => { scaleRef.current = scale; }, [scale]);
@@ -140,7 +141,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
             onClick={() => onStepClick(i)}
             className="flex-1 relative border-r last:border-r-0 cursor-pointer"
             style={{
-              backgroundColor: (supportsP3 && step.displayP3) || step.hex,
+              backgroundColor: (!srgbPreview && supportsP3 && step.displayP3) || step.hex,
               borderColor: 'rgba(0,0,0,0.07)',
               boxShadow: activeStepIndex === i ? 'inset 0 0 0 2px rgba(255,255,255,0.9)' : undefined,
             }}
