@@ -3,7 +3,7 @@ import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
 import type { StepNamingPreset } from '../../types/palette';
 
-type AppMode = 'edit' | 'preview' | 'visualize';
+type AppMode = 'edit' | 'preview' | 'visualize' | 'combos';
 type AppTheme = 'light' | 'dark';
 
 interface Props {
@@ -60,6 +60,8 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
   const updateStepNamingAll = usePaletteStore((s) => s.updateStepNamingAll);
   const applyLightnessPreset = usePaletteStore((s) => s.applyLightnessPreset);
   const scale = usePaletteStore(selectActiveScale);
+  const contrastMode = usePaletteStore((s) => s.contrastMode);
+  const setContrastMode = usePaletteStore((s) => s.setContrastMode);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -164,10 +166,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
         </div>
       )}
 
-      {/* Spacer */}
-      <div style={{ flex: 1 }} />
-
-      {/* Edit / Preview / Visualize toggle */}
+      {/* WCAG / APCA toggle */}
       <div
         style={{
           display: 'flex',
@@ -177,7 +176,42 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
           flexShrink: 0,
         }}
       >
-        {(['edit', 'preview', 'visualize'] as const).map((m, i) => (
+        {(['wcag', 'apca'] as const).map((m, i) => (
+          <button
+            key={m}
+            onClick={() => setContrastMode(m)}
+            style={{
+              padding: '4px 10px',
+              fontSize: 11,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              background: contrastMode === m ? 'var(--p-bg-inset)' : 'var(--p-bg)',
+              color: contrastMode === m ? 'var(--p-text)' : 'var(--p-text-secondary)',
+              border: 'none',
+              borderLeft: i > 0 ? '1px solid var(--p-border)' : 'none',
+              cursor: 'pointer',
+            }}
+          >
+            {m}
+          </button>
+        ))}
+      </div>
+
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* Edit / Preview / Visualize / Combos toggle */}
+      <div
+        style={{
+          display: 'flex',
+          border: '1px solid var(--p-border)',
+          borderRadius: 6,
+          overflow: 'hidden',
+          flexShrink: 0,
+        }}
+      >
+        {(['edit', 'preview', 'visualize', 'combos'] as const).map((m, i) => (
           <button
             key={m}
             onClick={() => onModeChange(m)}

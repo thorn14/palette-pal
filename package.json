@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.1",
+    "apca-w3": "^0.1.9",
     "culori": "^4.0.2",
     "immer": "^11.1.4",
     "react": "^19.2.0",

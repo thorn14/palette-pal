@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { ColorScale, PaletteState, StepNamingConfig, StepNamingPreset } from '../types/palette';
+import type { ColorScale, PaletteState, StepNamingConfig, StepNamingPreset, ContrastMode } from '../types/palette';
 import { hexToOklch, buildDefaultCurves, buildChromaCurve, oklchToHex } from '../lib/colorMath';
 import { buildLightnessValues, resolveStepNames, type LightnessPreset } from '../constants/stepPresets';
 import type { ImportedScale } from '../lib/importTokens';
@@ -37,6 +37,7 @@ interface PaletteActions {
   updateChromaPeak: (id: string, peak: number) => void;
   setChromaCurveValues: (id: string, values: number[]) => void;
   setFocusedStep: (ref: { scaleId: string; stepName: string } | null) => void;
+  setContrastMode: (mode: ContrastMode) => void;
   bulkCreateScales: (scales: Array<{ sourceHex: string; name: string }>, namingPreset: StepNamingPreset, lightnessPreset: LightnessPreset) => void;
   importScales: (imported: ImportedScale[], replace: boolean) => void;
 }
@@ -191,12 +192,13 @@ function loadInitialState(): PaletteState {
       cfg.activeScaleId && scales.some((s) => s.id === cfg.activeScaleId)
         ? cfg.activeScaleId
         : null;
-    return { scales, activeScaleId, focusedStepRef: null };
+    return { scales, activeScaleId, focusedStepRef: null, contrastMode: 'wcag' };
   }
   return {
     scales: [makeDefaultScale(DEFAULT_HEX, 'Blue')],
     activeScaleId: null,
     focusedStepRef: null,
+    contrastMode: 'wcag',
   };
 }
 
@@ -468,6 +470,10 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
 
     setFocusedStep: (ref) => set((state) => {
       state.focusedStepRef = ref;
+    }),
+
+    setContrastMode: (mode) => set((state) => {
+      state.contrastMode = mode;
     }),
 
     bulkCreateScales: (scaleInputs, namingPreset, lightnessPreset) => set((state) => {

@@ -1,4 +1,5 @@
 import { parse, oklch, formatHex, wcagContrast, clampChroma, converter } from 'culori';
+import { APCAcontrast, sRGBtoY } from 'apca-w3';
 import type { ColorScale, OklchColor, GeneratedStep, GeneratedRamp, ContrastResult, WCAGLevel, GamutLevel } from '../types/palette';
 
 const toRgb = converter('rgb');
@@ -74,6 +75,16 @@ export function getContrast(hexA: string, hexB: string): ContrastResult {
   else if (ratio >= 3) level = 'AA-large';
   else level = 'fail';
   return { ratio, level };
+}
+
+// APCA contrast Lc value (signed: positive = dark-on-light, negative = light-on-dark)
+export function getApcaContrast(hexFg: string, hexBg: string): number {
+  const fg = toRgb(parse(hexFg));
+  const bg = toRgb(parse(hexBg));
+  if (!fg || !bg) return 0;
+  const fgY = sRGBtoY([(fg.r ?? 0) * 255, (fg.g ?? 0) * 255, (fg.b ?? 0) * 255]);
+  const bgY = sRGBtoY([(bg.r ?? 0) * 255, (bg.g ?? 0) * 255, (bg.b ?? 0) * 255]);
+  return APCAcontrast(fgY, bgY) as number;
 }
 
 // Classify a pre-clamped OKLCH color into its gamut tier

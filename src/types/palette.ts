@@ -54,10 +54,25 @@ export interface GeneratedRamp {
 export type WCAGLevel = 'AAA' | 'AA' | 'AA-large' | 'fail';
 export interface ContrastResult { ratio: number; level: WCAGLevel }
 
+export type ContrastMode = 'wcag' | 'apca';
+
+export interface ContrastMapColorRef { ramp: string; step: string; hex: string }
+export interface WcagMapEntry { fg: ContrastMapColorRef; bg: ContrastMapColorRef; ratio: number }
+export interface ApcaMapEntry { fg: ContrastMapColorRef; bg: ContrastMapColorRef; lc: number }
+export interface ContrastMapOutput {
+  version: string;
+  generated: string;
+  totalRamps: number;
+  totalSteps: number;
+  wcag: { 'aa-large': WcagMapEntry[]; aa: WcagMapEntry[]; aaa: WcagMapEntry[] };
+  apca: { lc45: ApcaMapEntry[]; lc60: ApcaMapEntry[]; lc75: ApcaMapEntry[] };
+}
+
 export interface PaletteState {
   scales: ColorScale[];
   activeScaleId: string | null;
   focusedStepRef: { scaleId: string; stepName: string } | null;
+  contrastMode: ContrastMode;
 }
 
 // W3C DTCG 2025.10 color value format

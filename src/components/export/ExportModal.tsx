@@ -2,16 +2,36 @@ import { useState } from 'react';
 import { usePaletteStore } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
 import { exportToJSON } from '../../lib/exportTokens';
+import { exportContrastMapJSON } from '../../lib/exportContrastMap';
 
 interface Props {
   onClose: () => void;
 }
 
+type Tab = 'tokens' | 'contrast';
+
+const tabStyle = (active: boolean): React.CSSProperties => ({
+  padding: '6px 14px',
+  fontSize: 12,
+  fontWeight: 500,
+  background: active ? 'var(--p-bg-inset)' : 'transparent',
+  border: 'none',
+  borderBottom: active ? '2px solid var(--p-accent)' : '2px solid transparent',
+  cursor: 'pointer',
+  color: active ? 'var(--p-text)' : 'var(--p-text-secondary)',
+});
+
 export function ExportModal({ onClose }: Props) {
   const scales = usePaletteStore((s) => s.scales);
   const ramps = scales.map((scale) => generateRamp(scale));
-  const json = exportToJSON(ramps);
+  const tokensJson = exportToJSON(ramps);
+  const contrastJson = exportContrastMapJSON(ramps);
+
+  const [activeTab, setActiveTab] = useState<Tab>('tokens');
   const [copied, setCopied] = useState(false);
+
+  const json = activeTab === 'tokens' ? tokensJson : contrastJson;
+  const downloadName = activeTab === 'tokens' ? 'design-tokens.json' : 'contrast-map.json';
 
   function handleCopy() {
     navigator.clipboard.writeText(json).then(() => {
@@ -25,7 +45,7 @@ export function ExportModal({ onClose }: Props) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'design-tokens.json';
+    a.download = downloadName;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -68,7 +88,7 @@ export function ExportModal({ onClose }: Props) {
           }}
         >
           <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
-            Export — W3C Design Tokens
+            Export
           </h2>
           <button
             onClick={onClose}
@@ -88,6 +108,22 @@ export function ExportModal({ onClose }: Props) {
             }}
           >
             ×
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div
+          style={{
+            display: 'flex',
+            borderBottom: '1px solid var(--p-border)',
+            padding: '0 8px',
+          }}
+        >
+          <button style={tabStyle(activeTab === 'tokens')} onClick={() => { setActiveTab('tokens'); setCopied(false); }}>
+            Design Tokens
+          </button>
+          <button style={tabStyle(activeTab === 'contrast')} onClick={() => { setActiveTab('contrast'); setCopied(false); }}>
+            Contrast Map
           </button>
         </div>
 
@@ -144,7 +180,7 @@ export function ExportModal({ onClose }: Props) {
               fontWeight: 500,
             }}
           >
-            Download .json
+            Download {downloadName}
           </button>
           <button
             onClick={onClose}
