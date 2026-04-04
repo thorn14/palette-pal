@@ -252,20 +252,28 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
             const smoothing = scale.curves[curve.key].smoothing ?? 0;
             const nodeTypes = scale.curves[curve.key].nodeTypes;
 
-            // Effective values (after smoothing) — used for curve path and color generation
-            const effectiveRaw = curve.key === 'hue'
+            // Smooth raw values first, then add hue shift — matches generateRamp order
+            const smoothedRaw = smoothCurveValues(rawValues, smoothing);
+            const effectiveSmoothed = curve.key === 'hue'
+              ? smoothedRaw.map((v, i) => {
+                  const t = n <= 1 ? 0 : i / (n - 1);
+                  return v + computeHueShift(scale.sourceOklch.h, t, scale.hueShift.lightEndAdjust, scale.hueShift.darkEndAdjust);
+                })
+              : smoothedRaw;
+
+            // Points for path (smoothed positions — matches color generation)
+            const pathPoints = effectiveSmoothed.map((v, i) => getPoint(v, i, curve.min, curve.max));
+
+            // Node display values: raw + hue shift (unsmoothed, showing actual control point positions)
+            const nodeDisplay = curve.key === 'hue'
               ? rawValues.map((v, i) => {
                   const t = n <= 1 ? 0 : i / (n - 1);
                   return v + computeHueShift(scale.sourceOklch.h, t, scale.hueShift.lightEndAdjust, scale.hueShift.darkEndAdjust);
                 })
               : rawValues;
-            const effectiveSmoothed = smoothCurveValues(effectiveRaw, smoothing);
-
-            // Points for path (smoothed positions — matches color generation)
-            const pathPoints = effectiveSmoothed.map((v, i) => getPoint(v, i, curve.min, curve.max));
 
             // Points for nodes (raw positions — show where the control points actually are)
-            const nodePoints = effectiveRaw.map((v, i) => getPoint(v, i, curve.min, curve.max));
+            const nodePoints = nodeDisplay.map((v, i) => getPoint(v, i, curve.min, curve.max));
 
             const resolvedNodeTypes: ('smooth' | 'corner')[] =
               pathPoints.map((_, i) => nodeTypes?.[i] ?? 'smooth');
@@ -308,7 +316,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
                       stepIndex: -1,
                       mode: 'group',
                       dragStartClientY: e.clientY,
-                      groupStartValues: effectiveRaw.slice(),
+                      groupStartValues: nodeDisplay.slice(),
                     });
                   }}
                 />

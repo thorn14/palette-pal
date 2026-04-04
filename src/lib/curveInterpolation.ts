@@ -23,7 +23,8 @@ export function linspace(start: number, end: number, count: number): number[] {
 /**
  * Builds an SVG path `d` attribute string for a curve through the given points.
  * Smooth nodes use cubic bezier tangents derived from the monotone spline;
- * corner nodes force a zero tangent, producing a sharp angle.
+ * corner nodes use independent incoming/outgoing tangents (segment chord slopes)
+ * so the curve forms a genuine sharp angle at that point.
  *
  * @param points   Screen-space {x, y} positions for each control point
  * @param nodeTypes Per-point type: 'smooth' uses spline tangents, 'corner' creates sharp break
@@ -56,27 +57,35 @@ export function buildCurvePath(
     m[i] = (d[i - 1] + d[i]) / 2;
   }
 
-  // Fritsch–Carlson monotonicity constraints
+  // Fritsch–Carlson monotonicity constraints (smooth nodes only)
   for (let i = 0; i < n - 1; i++) {
     if (Math.abs(d[i]) < 1e-10) {
-      m[i] = 0;
-      m[i + 1] = 0;
+      if ((nodeTypes[i] ?? 'smooth') === 'smooth') m[i] = 0;
+      if ((nodeTypes[i + 1] ?? 'smooth') === 'smooth') m[i + 1] = 0;
     } else {
       const alpha = m[i] / d[i];
       const beta = m[i + 1] / d[i];
       const r = alpha * alpha + beta * beta;
       if (r > 9) {
         const t = 3 / Math.sqrt(r);
-        m[i] = t * alpha * d[i];
-        m[i + 1] = t * beta * d[i];
+        if ((nodeTypes[i] ?? 'smooth') === 'smooth') m[i] = t * alpha * d[i];
+        if ((nodeTypes[i + 1] ?? 'smooth') === 'smooth') m[i + 1] = t * beta * d[i];
       }
     }
   }
 
-  // Zero out tangents at corner nodes (both departure and arrival)
+  // Split tangents: mIn (arrival) and mOut (departure) per node.
+  // Smooth nodes share a single tangent (C1); corner nodes use the
+  // chord slope of the adjacent segment for a genuine sharp break.
+  const mIn: number[] = new Array(n);
+  const mOut: number[] = new Array(n);
   for (let i = 0; i < n; i++) {
     if ((nodeTypes[i] ?? 'smooth') === 'corner') {
-      m[i] = 0;
+      mIn[i] = i > 0 ? d[i - 1] : d[0];
+      mOut[i] = i < n - 1 ? d[i] : d[n - 2];
+    } else {
+      mIn[i] = m[i];
+      mOut[i] = m[i];
     }
   }
 
@@ -85,9 +94,9 @@ export function buildCurvePath(
   for (let i = 0; i < n - 1; i++) {
     const h = (xs[i + 1] - xs[i]) / 3;
     const cp1x = xs[i] + h;
-    const cp1y = ys[i] + m[i] * h;
+    const cp1y = ys[i] + mOut[i] * h;
     const cp2x = xs[i + 1] - h;
-    const cp2y = ys[i + 1] - m[i + 1] * h;
+    const cp2y = ys[i + 1] - mIn[i + 1] * h;
     path += ` C ${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${points[i + 1].x.toFixed(2)},${points[i + 1].y.toFixed(2)}`;
   }
   return path;
