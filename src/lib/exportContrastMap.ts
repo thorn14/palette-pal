@@ -1,26 +1,43 @@
 import { getContrast, getApcaContrast } from './colorMath';
-import type { GeneratedRamp, ContrastMapOutput, WcagMapEntry, ApcaMapEntry } from '../types/palette';
+import type { GeneratedRamp, WcagMapEntry, ApcaMapEntry } from '../types/palette';
 
-export function buildContrastMap(ramps: GeneratedRamp[]): ContrastMapOutput {
-  const allSteps = ramps.flatMap((r) =>
+interface ContrastMapMeta {
+  version: string;
+  generated: string;
+  totalRamps: number;
+  totalSteps: number;
+}
+
+export interface WcagContrastMap extends ContrastMapMeta {
+  wcag: { 'aa-large': WcagMapEntry[]; aa: WcagMapEntry[]; aaa: WcagMapEntry[] };
+}
+
+export interface ApcaContrastMap extends ContrastMapMeta {
+  apca: { lc45: ApcaMapEntry[]; lc60: ApcaMapEntry[]; lc75: ApcaMapEntry[] };
+}
+
+function buildSteps(ramps: GeneratedRamp[]) {
+  return ramps.flatMap((r) =>
     r.steps.map((s) => ({ ramp: r.scaleName, step: s.name, hex: s.hex }))
   );
+}
 
-  const wcag: { 'aa-large': WcagMapEntry[]; aa: WcagMapEntry[]; aaa: WcagMapEntry[] } = {
-    'aa-large': [],
-    aa: [],
-    aaa: [],
+function meta(ramps: GeneratedRamp[], totalSteps: number): ContrastMapMeta {
+  return {
+    version: '1.0',
+    generated: new Date().toISOString(),
+    totalRamps: ramps.length,
+    totalSteps,
   };
-  const apca: { lc45: ApcaMapEntry[]; lc60: ApcaMapEntry[]; lc75: ApcaMapEntry[] } = {
-    lc45: [],
-    lc60: [],
-    lc75: [],
-  };
+}
+
+export function buildWcagContrastMap(ramps: GeneratedRamp[]): WcagContrastMap {
+  const allSteps = buildSteps(ramps);
+  const wcag: WcagContrastMap['wcag'] = { 'aa-large': [], aa: [], aaa: [] };
 
   for (const fg of allSteps) {
     for (const bg of allSteps) {
       if (fg.hex === bg.hex) continue;
-
       const wcagResult = getContrast(fg.hex, bg.hex);
       if (wcagResult.level !== 'fail') {
         const entry: WcagMapEntry = { fg, bg, ratio: Math.round(wcagResult.ratio * 100) / 100 };
@@ -28,7 +45,19 @@ export function buildContrastMap(ramps: GeneratedRamp[]): ContrastMapOutput {
         else if (wcagResult.ratio >= 4.5) wcag.aa.push(entry);
         else wcag['aa-large'].push(entry);
       }
+    }
+  }
 
+  return { ...meta(ramps, allSteps.length), wcag };
+}
+
+export function buildApcaContrastMap(ramps: GeneratedRamp[]): ApcaContrastMap {
+  const allSteps = buildSteps(ramps);
+  const apca: ApcaContrastMap['apca'] = { lc45: [], lc60: [], lc75: [] };
+
+  for (const fg of allSteps) {
+    for (const bg of allSteps) {
+      if (fg.hex === bg.hex) continue;
       const lc = getApcaContrast(fg.hex, bg.hex);
       const absLc = Math.abs(lc);
       if (absLc >= 45) {
@@ -40,16 +69,13 @@ export function buildContrastMap(ramps: GeneratedRamp[]): ContrastMapOutput {
     }
   }
 
-  return {
-    version: '1.0',
-    generated: new Date().toISOString(),
-    totalRamps: ramps.length,
-    totalSteps: allSteps.length,
-    wcag,
-    apca,
-  };
+  return { ...meta(ramps, allSteps.length), apca };
 }
 
-export function exportContrastMapJSON(ramps: GeneratedRamp[]): string {
-  return JSON.stringify(buildContrastMap(ramps), null, 2);
+export function exportWcagContrastMapJSON(ramps: GeneratedRamp[]): string {
+  return JSON.stringify(buildWcagContrastMap(ramps), null, 2);
+}
+
+export function exportApcaContrastMapJSON(ramps: GeneratedRamp[]): string {
+  return JSON.stringify(buildApcaContrastMap(ramps), null, 2);
 }

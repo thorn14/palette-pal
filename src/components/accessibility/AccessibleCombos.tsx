@@ -1,4 +1,5 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { usePaletteStore } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
 import { getContrast, getApcaContrast } from '../../lib/colorMath';
@@ -20,7 +21,9 @@ const APCA_LEVELS: { key: ApcaLevel; label: string; sub: string }[] = [
   { key: 'lc45', label: 'Lc 45+', sub: '|Lc| ≥ 45' },
 ];
 
-const PAGE_SIZE = 200;
+const COLS = 7;
+const ROW_HEIGHT = 120;
+const ROW_GAP = 8;
 
 /** Rough perceived luminance from hex for polarity filtering */
 function hexLuminance(hex: string): number {
@@ -205,12 +208,7 @@ export function AccessibleCombos() {
   const [wcagLevel, setWcagLevel] = useState<WcagLevel>('aa');
   const [apcaLevel, setApcaLevel] = useState<ApcaLevel>('lc60');
   const [sortAsc, setSortAsc] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-
-  // Reset visible count when filters change
-  const setPolarityAndReset = useCallback((p: Polarity) => { setPolarity(p); setVisibleCount(PAGE_SIZE); }, []);
-  const setWcagLevelAndReset = useCallback((l: WcagLevel) => { setWcagLevel(l); setVisibleCount(PAGE_SIZE); }, []);
-  const setApcaLevelAndReset = useCallback((l: ApcaLevel) => { setApcaLevel(l); setVisibleCount(PAGE_SIZE); }, []);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Group steps by ramp so we only compare within the same ramp
   const stepsByRamp = useMemo(
@@ -276,11 +274,18 @@ export function AccessibleCombos() {
     ? WCAG_LEVELS.find((l) => l.key === wcagLevel)!
     : APCA_LEVELS.find((l) => l.key === apcaLevel)!;
 
-  const visible = entries.slice(0, visibleCount);
-  const hasMore = visibleCount < entries.length;
+  const rowCount = Math.ceil(entries.length / COLS);
+
+  const rowVirtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT + ROW_GAP,
+    overscan: 5,
+  });
 
   return (
     <div
+      ref={scrollRef}
       style={{
         flex: 1,
         overflow: 'auto',
@@ -300,11 +305,11 @@ export function AccessibleCombos() {
 
         <FilterBar
           polarity={polarity}
-          setPolarity={setPolarityAndReset}
+          setPolarity={setPolarity}
           wcagLevel={wcagLevel}
-          setWcagLevel={setWcagLevelAndReset}
+          setWcagLevel={setWcagLevel}
           apcaLevel={apcaLevel}
-          setApcaLevel={setApcaLevelAndReset}
+          setApcaLevel={setApcaLevel}
           sortAsc={sortAsc}
           setSortAsc={setSortAsc}
           contrastMode={contrastMode}
@@ -335,30 +340,34 @@ export function AccessibleCombos() {
             No pairs match these filters
           </span>
         ) : (
-          <>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {contrastMode === 'wcag'
-                ? (visible as WcagMapEntry[]).map((entry, i) => <WcagComboCard key={i} entry={entry} />)
-                : (visible as ApcaMapEntry[]).map((entry, i) => <ApcaComboCard key={i} entry={entry} />)}
-            </div>
-            {hasMore && (
-              <button
-                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-                style={{
-                  marginTop: 12,
-                  padding: '6px 16px',
-                  fontSize: 12,
-                  border: '1px solid var(--p-border)',
-                  borderRadius: 6,
-                  background: 'var(--p-bg-subtle)',
-                  color: 'var(--p-text-secondary)',
-                  cursor: 'pointer',
-                }}
-              >
-                Show more ({entries.length - visibleCount} remaining)
-              </button>
-            )}
-          </>
+          <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
+            {rowVirtualizer.getVirtualItems().map((vRow) => {
+              const startIdx = vRow.index * COLS;
+              const rowEntries = entries.slice(startIdx, startIdx + COLS);
+              return (
+                <div
+                  key={vRow.index}
+                  style={{
+                    position: 'absolute',
+                    top: vRow.start,
+                    left: 0,
+                    right: 0,
+                    display: 'flex',
+                    gap: ROW_GAP,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  {contrastMode === 'wcag'
+                    ? (rowEntries as WcagMapEntry[]).map((entry, i) => (
+                        <WcagComboCard key={startIdx + i} entry={entry} />
+                      ))
+                    : (rowEntries as ApcaMapEntry[]).map((entry, i) => (
+                        <ApcaComboCard key={startIdx + i} entry={entry} />
+                      ))}
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>

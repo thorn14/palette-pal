@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { usePaletteStore } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
 import { exportToJSON } from '../../lib/exportTokens';
-import { exportContrastMapJSON } from '../../lib/exportContrastMap';
+import { exportWcagContrastMapJSON, exportApcaContrastMapJSON } from '../../lib/exportContrastMap';
 
 interface Props {
   onClose: () => void;
 }
 
-type Tab = 'tokens' | 'contrast';
+type Tab = 'tokens' | 'contrast-wcag' | 'contrast-apca';
 
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: '6px 14px',
@@ -21,33 +22,85 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
   color: active ? 'var(--p-text)' : 'var(--p-text-secondary)',
 });
 
+function VirtualizedPre({ text }: { text: string }) {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const lines = useMemo(() => text.split('\n'), [text]);
+
+  const virtualizer = useVirtualizer({
+    count: lines.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 18,
+    overscan: 30,
+  });
+
+  return (
+    <div
+      ref={parentRef}
+      style={{
+        flex: 1,
+        overflow: 'auto',
+        background: 'var(--p-bg-subtle)',
+        padding: '12px 0',
+      }}
+    >
+      <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+        {virtualizer.getVirtualItems().map((vItem) => (
+          <div
+            key={vItem.index}
+            style={{
+              position: 'absolute',
+              top: vItem.start,
+              left: 0,
+              right: 0,
+              height: vItem.size,
+              padding: '0 20px',
+              fontSize: 12,
+              fontFamily: 'monospace',
+              color: 'var(--p-text-secondary)',
+              whiteSpace: 'pre',
+              lineHeight: '18px',
+            }}
+          >
+            {lines[vItem.index]}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function downloadJSON(json: string, filename: string) {
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function ExportModal({ onClose }: Props) {
   const scales = usePaletteStore((s) => s.scales);
-  const ramps = scales.map((scale) => generateRamp(scale));
-  const tokensJson = exportToJSON(ramps);
-  const contrastJson = exportContrastMapJSON(ramps);
+  const ramps = useMemo(() => scales.map((scale) => generateRamp(scale)), [scales]);
+
+  const tokensJson = useMemo(() => exportToJSON(ramps), [ramps]);
+  const wcagJson = useMemo(() => exportWcagContrastMapJSON(ramps), [ramps]);
+  const apcaJson = useMemo(() => exportApcaContrastMapJSON(ramps), [ramps]);
 
   const [activeTab, setActiveTab] = useState<Tab>('tokens');
   const [copied, setCopied] = useState(false);
 
-  const json = activeTab === 'tokens' ? tokensJson : contrastJson;
-  const downloadName = activeTab === 'tokens' ? 'design-tokens.json' : 'contrast-map.json';
+  const json = activeTab === 'tokens' ? tokensJson : activeTab === 'contrast-wcag' ? wcagJson : apcaJson;
+  const downloadName =
+    activeTab === 'tokens' ? 'design-tokens.json'
+    : activeTab === 'contrast-wcag' ? 'contrast-map-wcag.json'
+    : 'contrast-map-apca.json';
 
   function handleCopy() {
     navigator.clipboard.writeText(json).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
-  }
-
-  function handleDownload() {
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = downloadName;
-    a.click();
-    URL.revokeObjectURL(url);
   }
 
   return (
@@ -122,27 +175,16 @@ export function ExportModal({ onClose }: Props) {
           <button style={tabStyle(activeTab === 'tokens')} onClick={() => { setActiveTab('tokens'); setCopied(false); }}>
             Design Tokens
           </button>
-          <button style={tabStyle(activeTab === 'contrast')} onClick={() => { setActiveTab('contrast'); setCopied(false); }}>
-            Contrast Map
+          <button style={tabStyle(activeTab === 'contrast-wcag')} onClick={() => { setActiveTab('contrast-wcag'); setCopied(false); }}>
+            Contrast — WCAG
+          </button>
+          <button style={tabStyle(activeTab === 'contrast-apca')} onClick={() => { setActiveTab('contrast-apca'); setCopied(false); }}>
+            Contrast — APCA
           </button>
         </div>
 
-        {/* JSON content */}
-        <pre
-          style={{
-            flex: 1,
-            overflow: 'auto',
-            padding: 20,
-            margin: 0,
-            fontSize: 12,
-            fontFamily: 'monospace',
-            color: 'var(--p-text-secondary)',
-            background: 'var(--p-bg-subtle)',
-            whiteSpace: 'pre',
-          }}
-        >
-          {json}
-        </pre>
+        {/* Virtualized JSON content */}
+        <VirtualizedPre text={json} />
 
         {/* Footer */}
         <div
@@ -151,6 +193,7 @@ export function ExportModal({ onClose }: Props) {
             gap: 8,
             padding: '14px 20px',
             borderTop: '1px solid var(--p-border)',
+            flexWrap: 'wrap',
           }}
         >
           <button
@@ -168,7 +211,7 @@ export function ExportModal({ onClose }: Props) {
             {copied ? 'Copied!' : 'Copy JSON'}
           </button>
           <button
-            onClick={handleDownload}
+            onClick={() => downloadJSON(json, downloadName)}
             style={{
               padding: '6px 14px',
               fontSize: 13,
@@ -182,6 +225,38 @@ export function ExportModal({ onClose }: Props) {
           >
             Download {downloadName}
           </button>
+          {activeTab === 'tokens' && (
+            <>
+              <button
+                onClick={() => downloadJSON(wcagJson, 'contrast-map-wcag.json')}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  background: 'var(--p-bg-subtle)',
+                  border: '1px solid var(--p-border)',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  color: 'var(--p-text-secondary)',
+                }}
+              >
+                + WCAG Map
+              </button>
+              <button
+                onClick={() => downloadJSON(apcaJson, 'contrast-map-apca.json')}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  background: 'var(--p-bg-subtle)',
+                  border: '1px solid var(--p-border)',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  color: 'var(--p-text-secondary)',
+                }}
+              >
+                + APCA Map
+              </button>
+            </>
+          )}
           <button
             onClick={onClose}
             style={{
