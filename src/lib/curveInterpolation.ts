@@ -20,6 +20,79 @@ export function linspace(start: number, end: number, count: number): number[] {
   return Array.from({ length: count }, (_, i) => lerp(start, end, i / (count - 1)));
 }
 
+/**
+ * Builds an SVG path `d` attribute string for a curve through the given points.
+ * Smooth nodes use cubic bezier tangents derived from the monotone spline;
+ * corner nodes force a zero tangent, producing a sharp angle.
+ *
+ * @param points   Screen-space {x, y} positions for each control point
+ * @param nodeTypes Per-point type: 'smooth' uses spline tangents, 'corner' creates sharp break
+ * @returns SVG `d` string starting with M, using C (cubic bezier) commands
+ */
+export function buildCurvePath(
+  points: { x: number; y: number }[],
+  nodeTypes: ('smooth' | 'corner')[],
+): string {
+  const n = points.length;
+  if (n === 0) return '';
+  if (n === 1) return `M ${points[0].x},${points[0].y}`;
+
+  // Compute monotone cubic tangents in Y (X spacing is uniform)
+  const ys = points.map((p) => p.y);
+  const xs = points.map((p) => p.x);
+
+  // Slopes between consecutive points
+  const d: number[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    const dx = xs[i + 1] - xs[i];
+    d.push(dx === 0 ? 0 : (ys[i + 1] - ys[i]) / dx);
+  }
+
+  // Initial tangents (average of neighboring slopes)
+  const m: number[] = new Array(n);
+  m[0] = d[0];
+  m[n - 1] = d[n - 2];
+  for (let i = 1; i < n - 1; i++) {
+    m[i] = (d[i - 1] + d[i]) / 2;
+  }
+
+  // Fritsch–Carlson monotonicity constraints
+  for (let i = 0; i < n - 1; i++) {
+    if (Math.abs(d[i]) < 1e-10) {
+      m[i] = 0;
+      m[i + 1] = 0;
+    } else {
+      const alpha = m[i] / d[i];
+      const beta = m[i + 1] / d[i];
+      const r = alpha * alpha + beta * beta;
+      if (r > 9) {
+        const t = 3 / Math.sqrt(r);
+        m[i] = t * alpha * d[i];
+        m[i + 1] = t * beta * d[i];
+      }
+    }
+  }
+
+  // Zero out tangents at corner nodes (both departure and arrival)
+  for (let i = 0; i < n; i++) {
+    if ((nodeTypes[i] ?? 'smooth') === 'corner') {
+      m[i] = 0;
+    }
+  }
+
+  // Build path using cubic bezier commands
+  let path = `M ${points[0].x.toFixed(2)},${points[0].y.toFixed(2)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const h = (xs[i + 1] - xs[i]) / 3;
+    const cp1x = xs[i] + h;
+    const cp1y = ys[i] + m[i] * h;
+    const cp2x = xs[i + 1] - h;
+    const cp2y = ys[i + 1] - m[i + 1] * h;
+    path += ` C ${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${points[i + 1].x.toFixed(2)},${points[i + 1].y.toFixed(2)}`;
+  }
+  return path;
+}
+
 // Monotone cubic spline interpolation for smooth curve preview
 // Returns a function that interpolates the given points
 export function buildMonotoneCubicInterpolant(xs: number[], ys: number[]): (x: number) => number {

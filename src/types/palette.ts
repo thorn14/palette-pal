@@ -1,6 +1,10 @@
 export interface OklchColor { l: number; c: number; h: number; alpha?: number }
 
-export interface CurvePoints { values: number[] }  // one per step
+export interface CurvePoints {
+  values: number[];
+  nodeTypes?: ('smooth' | 'corner')[];  // per-step; defaults to 'smooth'
+  smoothing?: number;                    // 0–1; non-destructive, applied in generateRamp
+}
 
 export interface CurveConfig {
   lightness: CurvePoints;  // 0–1 per step

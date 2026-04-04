@@ -27,6 +27,9 @@ interface PaletteActions {
   removeStepAt: (id: string, index: number) => void;
   setStepsAll: (names: string[]) => void;
   updateCurveValue: (id: string, channel: 'lightness' | 'chroma' | 'hue', stepIndex: number, value: number) => void;
+  updateCurveValues: (id: string, channel: 'lightness' | 'chroma' | 'hue', values: number[]) => void;
+  updateCurveNodeType: (id: string, channel: 'lightness' | 'chroma' | 'hue', stepIndex: number, type: 'smooth' | 'corner') => void;
+  updateCurveSmoothing: (id: string, channel: 'lightness' | 'chroma' | 'hue', amount: number) => void;
   updateLightnessAt: (id: string, index: number, value: number) => void;
   setLightnessList: (id: string, values: number[]) => void;
   setStepList: (id: string, names: string[]) => void;
@@ -106,6 +109,20 @@ function resampleCurve(values: number[], nextCount: number): number[] {
     const frac = idx - lo;
     return values[lo] + (values[hi] - values[lo]) * frac;
   });
+}
+
+function insertNodeType(types: ('smooth' | 'corner')[] | undefined, index: number): ('smooth' | 'corner')[] {
+  if (!types) return [];
+  const next = types.slice();
+  next.splice(index, 0, 'smooth');
+  return next;
+}
+
+function removeNodeType(types: ('smooth' | 'corner')[] | undefined, index: number): ('smooth' | 'corner')[] | undefined {
+  if (!types) return undefined;
+  const next = types.slice();
+  next.splice(index, 1);
+  return next.length ? next : undefined;
 }
 
 function ensureCurve(values: number[] | undefined, nextCount: number, fallback: number): number[] {
@@ -297,21 +314,12 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
       scale.naming = { preset: 'custom', customNames: nextNames };
       scale.stepCount = nextNames.length;
 
-      scale.curves.lightness.values = insertCurveValue(
-        scale.curves.lightness.values,
-        clampedIndex,
-        scale.sourceOklch.l
-      );
-      scale.curves.chroma.values = insertCurveValue(
-        scale.curves.chroma.values,
-        clampedIndex,
-        scale.chromaPeak
-      );
-      scale.curves.hue.values = insertCurveValue(
-        scale.curves.hue.values,
-        clampedIndex,
-        0
-      );
+      scale.curves.lightness.values = insertCurveValue(scale.curves.lightness.values, clampedIndex, scale.sourceOklch.l);
+      scale.curves.lightness.nodeTypes = insertNodeType(scale.curves.lightness.nodeTypes, clampedIndex);
+      scale.curves.chroma.values = insertCurveValue(scale.curves.chroma.values, clampedIndex, scale.chromaPeak);
+      scale.curves.chroma.nodeTypes = insertNodeType(scale.curves.chroma.nodeTypes, clampedIndex);
+      scale.curves.hue.values = insertCurveValue(scale.curves.hue.values, clampedIndex, 0);
+      scale.curves.hue.nodeTypes = insertNodeType(scale.curves.hue.nodeTypes, clampedIndex);
     }),
 
     removeStepAt: (id, index) => set((state) => {
@@ -325,14 +333,39 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
       scale.naming = { preset: 'custom', customNames: nextNames };
       scale.stepCount = nextNames.length;
       scale.curves.lightness.values = removeCurveValue(scale.curves.lightness.values, index);
+      scale.curves.lightness.nodeTypes = removeNodeType(scale.curves.lightness.nodeTypes, index);
       scale.curves.chroma.values = removeCurveValue(scale.curves.chroma.values, index);
+      scale.curves.chroma.nodeTypes = removeNodeType(scale.curves.chroma.nodeTypes, index);
       scale.curves.hue.values = removeCurveValue(scale.curves.hue.values, index);
+      scale.curves.hue.nodeTypes = removeNodeType(scale.curves.hue.nodeTypes, index);
     }),
 
     updateCurveValue: (id, channel, stepIndex, value) => set((state) => {
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       scale.curves[channel].values[stepIndex] = value;
+    }),
+
+    updateCurveValues: (id, channel, values) => set((state) => {
+      const scale = state.scales.find((s) => s.id === id);
+      if (!scale) return;
+      scale.curves[channel].values = values.slice();
+    }),
+
+    updateCurveNodeType: (id, channel, stepIndex, type) => set((state) => {
+      const scale = state.scales.find((s) => s.id === id);
+      if (!scale) return;
+      const curve = scale.curves[channel];
+      if (!curve.nodeTypes) {
+        curve.nodeTypes = Array.from({ length: curve.values.length }, () => 'smooth' as const);
+      }
+      curve.nodeTypes[stepIndex] = type;
+    }),
+
+    updateCurveSmoothing: (id, channel, amount) => set((state) => {
+      const scale = state.scales.find((s) => s.id === id);
+      if (!scale) return;
+      scale.curves[channel].smoothing = Math.max(0, Math.min(1, amount));
     }),
 
     updateLightnessAt: (id, index, value) => set((state) => {
