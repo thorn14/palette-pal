@@ -107,8 +107,15 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
       const i = dragState.stepIndex;
       const rawValues = s.curves[dragState.curveKey].values;
       if (i > 0 && i < n - 1) {
-        const prev = rawValues[i - 1] ?? value;
-        const next = rawValues[i + 1] ?? value;
+        let prev = rawValues[i - 1] ?? value;
+        let next = rawValues[i + 1] ?? value;
+        // For hue: compute neighbors in display space (raw + hueShift) to match `value`
+        if (dragState.curveKey === 'hue') {
+          const tPrev = (i - 1) / (n - 1);
+          const tNext = (i + 1) / (n - 1);
+          prev += computeHueShift(s.sourceOklch.h, tPrev, s.hueShift.lightEndAdjust, s.hueShift.darkEndAdjust);
+          next += computeHueShift(s.sourceOklch.h, tNext, s.hueShift.lightEndAdjust, s.hueShift.darkEndAdjust);
+        }
         const smoothTarget = prev * 0.25 + value * 0.5 + next * 0.25;
         value = smoothTarget;
       }
