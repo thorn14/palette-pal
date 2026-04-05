@@ -49,6 +49,7 @@ export function RightPanel({ scale, activeStep }: Props) {
   const updateHueShift = usePaletteStore((s) => s.updateHueShift);
   const updateChromaPeak = usePaletteStore((s) => s.updateChromaPeak);
   const setChromaCurveValues = usePaletteStore((s) => s.setChromaCurveValues);
+  const updateCurveSmoothing = usePaletteStore((s) => s.updateCurveSmoothing);
   const removeScale = usePaletteStore((s) => s.removeScale);
   const ramp = useGeneratedRamp(scale);
 
@@ -205,6 +206,45 @@ export function RightPanel({ scale, activeStep }: Props) {
             Pin to P3
           </button>
         </div>
+      </div>
+
+      {/* Curve Smoothing */}
+      <div style={sectionStyle}>
+        <SectionLabel>Curve Smoothing</SectionLabel>
+        <p style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginBottom: 10, lineHeight: 1.4 }}>
+          Blends interior nodes toward a smooth average. Leaf nodes (first/last) are always preserved.
+        </p>
+        {(
+          [
+            { key: 'lightness' as const, label: 'Lightness', color: '#d97706' },
+            { key: 'chroma'    as const, label: 'Chroma',    color: '#059669' },
+            { key: 'hue'       as const, label: 'Hue',       color: '#7c3aed' },
+          ]
+        ).map(({ key, label, color }) => {
+          const value = scale.curves[key].smoothing ?? 0;
+          return (
+            <label key={key} style={{ display: 'block', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 12, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: color, display: 'inline-block', flexShrink: 0 }} />
+                  {label}
+                </span>
+                <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-tertiary)' }}>
+                  {(value * 100).toFixed(0)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={value}
+                onChange={(e) => updateCurveSmoothing(scale.id, key, parseFloat(e.target.value))}
+                style={{ width: '100%', accentColor: color }}
+              />
+            </label>
+          );
+        })}
       </div>
 
       {/* Hue shift */}

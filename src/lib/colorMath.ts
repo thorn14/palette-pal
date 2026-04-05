@@ -224,17 +224,34 @@ export function buildDefaultCurves(sourceOklch: OklchColor, stepCount: number): 
   };
 }
 
+// Non-destructive smoothing: blends each interior node toward a weighted neighbor average.
+// Leaf nodes (first/last) are always preserved exactly.
+export function smoothCurveValues(values: number[], smoothing: number): number[] {
+  if (smoothing <= 0 || values.length <= 2) return values;
+  const result = values.slice();
+  const t = Math.min(1, Math.max(0, smoothing));
+  for (let i = 1; i < values.length - 1; i++) {
+    const avg = values[i - 1] * 0.25 + values[i] * 0.5 + values[i + 1] * 0.25;
+    result[i] = values[i] + (avg - values[i]) * t;
+  }
+  return result;
+}
+
 // Core ramp generation algorithm
 export function generateRamp(scale: ColorScale): GeneratedRamp {
   const { id, name, sourceOklch, stepCount, naming, curves, hueShift } = scale;
   const stepNames = resolveStepNames(naming.preset, stepCount, naming.customNames);
 
+  const lv = smoothCurveValues(curves.lightness.values, curves.lightness.smoothing ?? 0);
+  const cv = smoothCurveValues(curves.chroma.values, curves.chroma.smoothing ?? 0);
+  const hv = smoothCurveValues(curves.hue.values, curves.hue.smoothing ?? 0);
+
   const steps: GeneratedStep[] = [];
 
   for (let i = 0; i < stepCount; i++) {
-    const l = curves.lightness.values[i] ?? sourceOklch.l;
-    const c = curves.chroma.values[i] ?? sourceOklch.c;
-    const baseDeltaH = curves.hue.values[i] ?? 0;
+    const l = lv[i] ?? sourceOklch.l;
+    const c = cv[i] ?? sourceOklch.c;
+    const baseDeltaH = hv[i] ?? 0;
 
     // t=0 is lightest (i=0), t=1 is darkest (i=stepCount-1)
     const t = stepCount === 1 ? 0 : i / (stepCount - 1);
