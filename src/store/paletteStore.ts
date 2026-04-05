@@ -125,6 +125,21 @@ function removeNodeType(types: ('smooth' | 'corner')[] | undefined, index: numbe
   return next.length ? next : undefined;
 }
 
+function resampleNodeTypes(types: ('smooth' | 'corner')[] | undefined, nextCount: number): ('smooth' | 'corner')[] | undefined {
+  if (!types || types.length === 0) return undefined;
+  // Resample node types using nearest-neighbor mapping
+  return Array.from({ length: nextCount }, (_, i) => {
+    const srcIndex = Math.round(i / (nextCount - 1) * (types.length - 1));
+    return types[Math.min(srcIndex, types.length - 1)];
+  });
+}
+
+function resampleAllNodeTypes(scale: ColorScale, nextCount: number): void {
+  for (const channel of ['lightness', 'chroma', 'hue'] as const) {
+    scale.curves[channel].nodeTypes = resampleNodeTypes(scale.curves[channel].nodeTypes, nextCount);
+  }
+}
+
 function ensureCurve(values: number[] | undefined, nextCount: number, fallback: number): number[] {
   if (!values || values.length === 0) {
     return Array.from({ length: nextCount }, () => fallback);
@@ -413,6 +428,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
       scale.lightnessPreset = 'custom';
       scale.curves.chroma.values = resampleCurve(scale.curves.chroma.values, clampedValues.length);
       scale.curves.hue.values = resampleCurve(scale.curves.hue.values, clampedValues.length);
+      resampleAllNodeTypes(scale, clampedValues.length);
     }),
 
     setStepList: (id, names) => set((state) => {
@@ -425,6 +441,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
       scale.curves.lightness.values = resampleCurve(scale.curves.lightness.values, cleaned.length);
       scale.curves.chroma.values = resampleCurve(scale.curves.chroma.values, cleaned.length);
       scale.curves.hue.values = resampleCurve(scale.curves.hue.values, cleaned.length);
+      resampleAllNodeTypes(scale, cleaned.length);
     }),
 
     setStepsAll: (names) => set((state) => {
@@ -436,6 +453,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
         scale.curves.lightness.values = resampleCurve(scale.curves.lightness.values, cleaned.length);
         scale.curves.chroma.values = resampleCurve(scale.curves.chroma.values, cleaned.length);
         scale.curves.hue.values = resampleCurve(scale.curves.hue.values, cleaned.length);
+        resampleAllNodeTypes(scale, cleaned.length);
       }
     }),
 
@@ -476,8 +494,9 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
 
       scale.curves.chroma.values = resampleCurve(scale.curves.chroma.values, nextCount);
       scale.curves.hue.values = resampleCurve(scale.curves.hue.values, nextCount);
+      resampleAllNodeTypes(scale, nextCount);
     }),
-    
+
     setLightnessAll: (values) => set((state) => {
       const cleaned = values.length ? values.map((v) => Math.max(0, Math.min(1, v))) : [];
       if (!cleaned.length) return;
