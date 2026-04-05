@@ -7,14 +7,17 @@ interface Props {
 
 export function HueShiftControls({ scale }: Props) {
   const updateHueShift = usePaletteStore((s) => s.updateHueShift);
+  const lightEndId = `hue-shift-light-${scale.id}`;
+  const darkEndId = `hue-shift-dark-${scale.id}`;
 
   return (
     <div className="flex gap-6 p-3 bg-neutral-900 rounded-lg border border-neutral-800">
       <div className="flex-1 space-y-1">
-        <label className="text-xs text-neutral-400">
+        <label htmlFor={lightEndId} className="text-xs text-neutral-400">
           Light-end hue shift (warm) — {scale.hueShift.lightEndAdjust}%
         </label>
         <input
+          id={lightEndId}
           type="range"
           min={0}
           max={100}
@@ -25,10 +28,11 @@ export function HueShiftControls({ scale }: Props) {
         />
       </div>
       <div className="flex-1 space-y-1">
-        <label className="text-xs text-neutral-400">
+        <label htmlFor={darkEndId} className="text-xs text-neutral-400">
           Dark-end hue shift (cool) — {scale.hueShift.darkEndAdjust}%
         </label>
         <input
+          id={darkEndId}
           type="range"
           min={0}
           max={100}

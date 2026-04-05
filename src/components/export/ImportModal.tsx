@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { usePaletteStore } from '../../store/paletteStore';
 import { parseW3CTokens, type ImportedScale } from '../../lib/importTokens';
 
@@ -7,6 +7,7 @@ interface Props {
 }
 
 export function ImportModal({ onClose }: Props) {
+  const textareaId = useId();
   const importScales = usePaletteStore((s) => s.importScales);
   const hasExisting = usePaletteStore((s) => s.scales.length > 0);
 
@@ -49,6 +50,14 @@ export function ImportModal({ onClose }: Props) {
     onClose();
   }
 
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
     <div
       style={{
@@ -60,10 +69,14 @@ export function ImportModal({ onClose }: Props) {
         justifyContent: 'center',
         zIndex: 50,
         padding: 16,
+        overscrollBehavior: 'contain',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="import-modal-title"
         style={{
           background: 'var(--p-bg)',
           border: '1px solid var(--p-border)',
@@ -86,11 +99,13 @@ export function ImportModal({ onClose }: Props) {
             borderBottom: '1px solid var(--p-border)',
           }}
         >
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
+          <h2 id="import-modal-title" style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
             Import — W3C Design Tokens
           </h2>
           <button
             onClick={onClose}
+            aria-label="Close import modal"
+            className="focus-visible-ring"
             style={{
               width: 28,
               height: 28,
@@ -115,6 +130,7 @@ export function ImportModal({ onClose }: Props) {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button
               onClick={() => fileRef.current?.click()}
+              className="focus-visible-ring"
               style={{
                 padding: '6px 14px',
                 fontSize: 13,
@@ -139,11 +155,18 @@ export function ImportModal({ onClose }: Props) {
             </span>
           </div>
 
+          <label htmlFor={textareaId} style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
+            Token JSON
+          </label>
           <textarea
+            id={textareaId}
+            name="import-json"
             value={json}
             onChange={(e) => handleParse(e.target.value)}
-            placeholder='Paste W3C DTCG JSON here...'
+            placeholder='Paste W3C DTCG JSON here…'
             spellCheck={false}
+            aria-label="Paste W3C design token JSON"
+            className="focus-visible-ring"
             style={{
               width: '100%',
               minHeight: 180,
@@ -155,7 +178,6 @@ export function ImportModal({ onClose }: Props) {
               borderRadius: 8,
               color: 'var(--p-text-secondary)',
               resize: 'vertical',
-              outline: 'none',
             }}
           />
 
@@ -218,6 +240,7 @@ export function ImportModal({ onClose }: Props) {
           <button
             disabled={!preview}
             onClick={handleImport}
+            className="focus-visible-ring"
             style={{
               padding: '6px 14px',
               fontSize: 13,
@@ -235,6 +258,7 @@ export function ImportModal({ onClose }: Props) {
           </button>
           <button
             onClick={onClose}
+            className="focus-visible-ring"
             style={{
               marginLeft: 'auto',
               padding: '6px 14px',
