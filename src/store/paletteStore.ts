@@ -373,9 +373,10 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       const curve = scale.curves[channel];
-      if (!curve.nodeTypes) {
-        curve.nodeTypes = Array.from({ length: curve.values.length }, () => 'smooth' as const);
-      }
+      curve.nodeTypes = Array.from(
+        { length: curve.values.length },
+        (_, index) => curve.nodeTypes?.[index] ?? ('smooth' as const),
+      );
       curve.nodeTypes[stepIndex] = type;
     }),
 
