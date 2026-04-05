@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import type { ColorScale, GeneratedStep } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
 import { getContrast, sourceWithChromaToHex, autoHueShiftBase, maxP3Chroma, maxSrgbChroma } from '../../lib/colorMath';
@@ -11,17 +11,17 @@ interface Props {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--p-text-secondary)', marginBottom: 8 }}>
+    <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--p-text-secondary)', marginBottom: 8 }}>
       {children}
-    </p>
+    </div>
   );
 }
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
+function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
   return (
-    <p style={{ fontSize: 12, color: 'var(--p-text-secondary)', marginBottom: 4 }}>
+    <label htmlFor={htmlFor} style={{ fontSize: 12, color: 'var(--p-text-secondary)', marginBottom: 4, display: 'block' }}>
       {children}
-    </p>
+    </label>
   );
 }
 
@@ -33,7 +33,6 @@ const inputStyle: React.CSSProperties = {
   border: '1px solid var(--p-border)',
   borderRadius: 6,
   color: 'var(--p-text)',
-  outline: 'none',
 };
 
 const sectionStyle: React.CSSProperties = {
@@ -44,6 +43,12 @@ const sectionStyle: React.CSSProperties = {
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 export function RightPanel({ scale, activeStep }: Props) {
+  const idBase = useId();
+  const nameId = `${idBase}-scale-name`;
+  const sourceHexId = `${idBase}-source-hex`;
+  const chromaRangeId = `${idBase}-chroma-range`;
+  const lightEndAdjustId = `${idBase}-light-end-adjust`;
+  const darkEndAdjustId = `${idBase}-dark-end-adjust`;
   const updateSourceHex = usePaletteStore((s) => s.updateSourceHex);
   const updateScaleName = usePaletteStore((s) => s.updateScaleName);
   const updateHueShift = usePaletteStore((s) => s.updateHueShift);
@@ -91,21 +96,26 @@ export function RightPanel({ scale, activeStep }: Props) {
       <div style={sectionStyle}>
         <SectionLabel>Scale</SectionLabel>
 
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel htmlFor={nameId}>Name</FieldLabel>
         <input
+          id={nameId}
+          name="scale-name"
           type="text"
           value={scale.name}
           onChange={(e) => updateScaleName(scale.id, e.target.value)}
           style={inputStyle}
+          className="focus-visible-ring"
+          autoComplete="off"
         />
 
         <div style={{ marginTop: 12 }}>
-          <FieldLabel>Source color</FieldLabel>
+          <FieldLabel htmlFor={sourceHexId}>Source color</FieldLabel>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <input
               type="color"
               value={sourceWithChromaToHex(scale.sourceOklch.l, scale.chromaPeak, scale.sourceOklch.h)}
               onChange={(e) => updateSourceHex(scale.id, e.target.value)}
+              aria-label="Source color picker"
               style={{
                 width: 32,
                 height: 32,
@@ -117,6 +127,8 @@ export function RightPanel({ scale, activeStep }: Props) {
               }}
             />
             <input
+              id={sourceHexId}
+              name="source-hex"
               type="text"
               value={hexDraft}
               onFocus={() => { hexFocused.current = true; }}
@@ -124,6 +136,7 @@ export function RightPanel({ scale, activeStep }: Props) {
               onBlur={commitHex}
               onKeyDown={(e) => { if (e.key === 'Enter') commitHex(); }}
               style={{ ...inputStyle, width: 'auto', flex: 1, fontFamily: 'monospace', fontSize: 12 }}
+              className="focus-visible-ring"
             />
           </div>
           <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--p-text-secondary)', lineHeight: 1.8 }}>
@@ -137,9 +150,10 @@ export function RightPanel({ scale, activeStep }: Props) {
       {/* Chroma */}
       <div style={sectionStyle}>
         <SectionLabel>Chroma</SectionLabel>
-        <FieldLabel>Peak chroma (0 – 0.4)</FieldLabel>
+        <FieldLabel htmlFor={chromaRangeId}>Peak chroma (0 – 0.4)</FieldLabel>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <input
+            id={chromaRangeId}
             type="range"
             min={0}
             max={0.4}
@@ -147,8 +161,10 @@ export function RightPanel({ scale, activeStep }: Props) {
             value={scale.chromaPeak}
             onChange={(e) => updateChromaPeak(scale.id, parseFloat(e.target.value))}
             style={{ flex: 1, accentColor: 'var(--p-accent)' }}
+            aria-label="Peak chroma"
           />
           <input
+            name="peak-chroma"
             type="number"
             min={0}
             max={0.4}
@@ -166,6 +182,8 @@ export function RightPanel({ scale, activeStep }: Props) {
               fontSize: 12,
               padding: '4px 6px',
             }}
+            className="focus-visible-ring"
+            aria-label="Peak chroma numeric value"
           />
         </div>
         <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
@@ -174,6 +192,7 @@ export function RightPanel({ scale, activeStep }: Props) {
               const values = ramp.steps.map((step) => maxSrgbChroma(step.oklch.l, step.oklch.h));
               setChromaCurveValues(scale.id, values);
             }}
+            className="focus-visible-ring"
             style={{
               flex: 1,
               padding: '5px 8px',
@@ -192,6 +211,7 @@ export function RightPanel({ scale, activeStep }: Props) {
               const values = ramp.steps.map((step) => maxP3Chroma(step.oklch.l, step.oklch.h));
               setChromaCurveValues(scale.id, values);
             }}
+            className="focus-visible-ring"
             style={{
               flex: 1,
               padding: '5px 8px',
@@ -241,6 +261,7 @@ export function RightPanel({ scale, activeStep }: Props) {
                 value={value}
                 onChange={(e) => updateCurveSmoothing(scale.id, key, parseFloat(e.target.value))}
                 style={{ width: '100%', accentColor: color }}
+                aria-label={`${label} smoothing`}
               />
             </label>
           );
@@ -265,7 +286,7 @@ export function RightPanel({ scale, activeStep }: Props) {
           return (
             <div key={key} style={{ marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                <label style={{ fontSize: 12, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <label htmlFor={key === 'lightEndAdjust' ? lightEndAdjustId : darkEndAdjustId} style={{ fontSize: 12, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: dotColor, display: 'inline-block' }} />
                   {label}
                 </label>
@@ -275,6 +296,8 @@ export function RightPanel({ scale, activeStep }: Props) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input
+                  id={key === 'lightEndAdjust' ? lightEndAdjustId : darkEndAdjustId}
+                  name={key}
                   type="number"
                   min={-90}
                   max={90}
@@ -291,6 +314,7 @@ export function RightPanel({ scale, activeStep }: Props) {
                     fontSize: 13,
                     flexShrink: 0,
                   }}
+                  className="focus-visible-ring"
                 />
                 <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>°</span>
               </div>
@@ -348,6 +372,7 @@ export function RightPanel({ scale, activeStep }: Props) {
         {!confirmDelete ? (
           <button
             onClick={() => setConfirmDelete(true)}
+            className="focus-visible-ring"
             style={{
               width: '100%',
               padding: '5px 8px',
@@ -369,6 +394,7 @@ export function RightPanel({ scale, activeStep }: Props) {
             <div style={{ display: 'flex', gap: 6 }}>
               <button
                 onClick={() => removeScale(scale.id)}
+                className="focus-visible-ring"
                 style={{
                   flex: 1,
                   padding: '5px 8px',
@@ -385,6 +411,7 @@ export function RightPanel({ scale, activeStep }: Props) {
               </button>
               <button
                 onClick={() => setConfirmDelete(false)}
+                className="focus-visible-ring"
                 style={{
                   flex: 1,
                   padding: '5px 8px',

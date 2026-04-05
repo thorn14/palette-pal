@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { usePaletteStore } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
@@ -125,6 +125,14 @@ export function ExportModal({ onClose }: Props) {
     });
   }
 
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
     <div
       style={{
@@ -136,10 +144,14 @@ export function ExportModal({ onClose }: Props) {
         justifyContent: 'center',
         zIndex: 50,
         padding: 16,
+        overscrollBehavior: 'contain',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="export-modal-title"
         style={{
           background: 'var(--p-bg)',
           border: '1px solid var(--p-border)',
@@ -162,11 +174,13 @@ export function ExportModal({ onClose }: Props) {
             borderBottom: '1px solid var(--p-border)',
           }}
         >
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
+          <h2 id="export-modal-title" style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
             Export
           </h2>
           <button
             onClick={onClose}
+            aria-label="Close export modal"
+            className="focus-visible-ring"
             style={{
               width: 28,
               height: 28,
@@ -188,19 +202,21 @@ export function ExportModal({ onClose }: Props) {
 
         {/* Tabs */}
         <div
+          role="tablist"
+          aria-label="Export format"
           style={{
             display: 'flex',
             borderBottom: '1px solid var(--p-border)',
             padding: '0 8px',
           }}
         >
-          <button style={tabStyle(activeTab === 'tokens')} onClick={() => { setActiveTab('tokens'); setCopied(false); }}>
+          <button role="tab" aria-selected={activeTab === 'tokens'} style={tabStyle(activeTab === 'tokens')} onClick={() => { setActiveTab('tokens'); setCopied(false); }} className="focus-visible-ring">
             Design Tokens
           </button>
-          <button style={tabStyle(activeTab === 'contrast-wcag')} onClick={() => { setActiveTab('contrast-wcag'); setCopied(false); }}>
+          <button role="tab" aria-selected={activeTab === 'contrast-wcag'} style={tabStyle(activeTab === 'contrast-wcag')} onClick={() => { setActiveTab('contrast-wcag'); setCopied(false); }} className="focus-visible-ring">
             Contrast — WCAG
           </button>
-          <button style={tabStyle(activeTab === 'contrast-apca')} onClick={() => { setActiveTab('contrast-apca'); setCopied(false); }}>
+          <button role="tab" aria-selected={activeTab === 'contrast-apca'} style={tabStyle(activeTab === 'contrast-apca')} onClick={() => { setActiveTab('contrast-apca'); setCopied(false); }} className="focus-visible-ring">
             Contrast — APCA
           </button>
         </div>
@@ -220,6 +236,7 @@ export function ExportModal({ onClose }: Props) {
         >
           <button
             onClick={handleCopy}
+            className="focus-visible-ring"
             style={{
               padding: '6px 14px',
               fontSize: 13,
@@ -232,8 +249,12 @@ export function ExportModal({ onClose }: Props) {
           >
             {copied ? 'Copied!' : 'Copy JSON'}
           </button>
+          <span aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+            {copied ? 'Copied to clipboard' : ''}
+          </span>
           <button
             onClick={() => downloadJSON(json, downloadName)}
+            className="focus-visible-ring"
             style={{
               padding: '6px 14px',
               fontSize: 13,
@@ -251,6 +272,7 @@ export function ExportModal({ onClose }: Props) {
             <>
               <button
                 onClick={() => downloadJSON(exportWcagContrastMapJSON(ramps), 'contrast-map-wcag.json')}
+                className="focus-visible-ring"
                 style={{
                   padding: '6px 14px',
                   fontSize: 12,
@@ -265,6 +287,7 @@ export function ExportModal({ onClose }: Props) {
               </button>
               <button
                 onClick={() => downloadJSON(exportApcaContrastMapJSON(ramps), 'contrast-map-apca.json')}
+                className="focus-visible-ring"
                 style={{
                   padding: '6px 14px',
                   fontSize: 12,
@@ -281,6 +304,7 @@ export function ExportModal({ onClose }: Props) {
           )}
           <button
             onClick={onClose}
+            className="focus-visible-ring"
             style={{
               marginLeft: 'auto',
               padding: '6px 14px',

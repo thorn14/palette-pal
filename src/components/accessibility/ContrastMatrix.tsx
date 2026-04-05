@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { GeneratedRamp } from '../../types/palette';
 import { useContrastMatrix, useApcaContrastMatrix } from '../../hooks/useContrastMatrix';
@@ -12,14 +12,8 @@ interface Props {
 
 export function ContrastMatrix({ ramp }: Props) {
   const contrastMode = usePaletteStore((s) => s.contrastMode);
-  const wcagMatrix = useMemo(
-    () => contrastMode === 'wcag' ? useContrastMatrix(ramp) : null,
-    [ramp, contrastMode],
-  );
-  const apcaMatrix = useMemo(
-    () => contrastMode === 'apca' ? useApcaContrastMatrix(ramp) : null,
-    [ramp, contrastMode],
-  );
+  const wcagMatrix = useContrastMatrix(ramp);
+  const apcaMatrix = useApcaContrastMatrix(ramp);
   const stepNames = ramp.steps.map((s) => s.name);
   const rowCount = ramp.steps.length;
   const colCount = stepNames.length + 1; // +1 for row header
@@ -77,12 +71,12 @@ export function ContrastMatrix({ ramp }: Props) {
               >
                 <div role="rowheader" className="text-neutral-400 font-medium pr-2 text-right">{stepNames[ri]}</div>
                 {contrastMode === 'apca'
-                  ? apcaMatrix![ri].map((cell, ci) => (
+                  ? apcaMatrix[ri].map((cell, ci) => (
                       <div key={ci} role="gridcell" className="p-0.5 text-center">
                         {ri === ci ? <span className="text-neutral-700">—</span> : <ApcaBadge lc={cell.lc} showValue />}
                       </div>
                     ))
-                  : wcagMatrix![ri].map((cell, ci) => (
+                  : wcagMatrix[ri].map((cell, ci) => (
                       <div key={ci} role="gridcell" className="p-0.5 text-center">
                         {ri === ci ? <span className="text-neutral-700">—</span> : <ContrastBadge level={cell.result.level} ratio={cell.result.ratio} showRatio />}
                       </div>

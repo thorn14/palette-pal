@@ -170,22 +170,22 @@ function FilterBar({
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
         <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginRight: 4 }}>Background:</span>
         {(['light', 'dark', 'all'] as Polarity[]).map((p) => (
-          <button key={p} onClick={() => setPolarity(p)} style={btnStyle(polarity === p)}>
-            {p === 'light' ? 'Light' : p === 'dark' ? 'Dark' : 'All'}
-          </button>
-        ))}
+            <button key={p} onClick={() => setPolarity(p)} style={btnStyle(polarity === p)}>
+              {p === 'light' ? 'Light' : p === 'dark' ? 'Dark' : 'All'}
+            </button>
+          ))}
       </div>
-
+      
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
         <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginRight: 4 }}>Level:</span>
         {contrastMode === 'wcag'
           ? WCAG_LEVELS.map(({ key, label }) => (
-              <button key={key} onClick={() => setWcagLevel(key)} style={btnStyle(wcagLevel === key)}>
+              <button key={key} onClick={() => setWcagLevel(key)} style={btnStyle(wcagLevel === key)} className="focus-visible-ring">
                 {label}
               </button>
             ))
           : APCA_LEVELS.map(({ key, label }) => (
-              <button key={key} onClick={() => setApcaLevel(key)} style={btnStyle(apcaLevel === key)}>
+              <button key={key} onClick={() => setApcaLevel(key)} style={btnStyle(apcaLevel === key)} className="focus-visible-ring">
                 {label}
               </button>
             ))}
@@ -193,8 +193,8 @@ function FilterBar({
 
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
         <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginRight: 4 }}>Sort:</span>
-        <button onClick={() => setSortAsc(false)} style={btnStyle(!sortAsc)}>High → Low</button>
-        <button onClick={() => setSortAsc(true)} style={btnStyle(sortAsc)}>Low → High</button>
+        <button onClick={() => setSortAsc(false)} style={btnStyle(!sortAsc)} className="focus-visible-ring">High → Low</button>
+        <button onClick={() => setSortAsc(true)} style={btnStyle(sortAsc)} className="focus-visible-ring">Low → High</button>
       </div>
     </div>
   );
