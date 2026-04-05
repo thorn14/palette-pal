@@ -127,6 +127,8 @@ function removeNodeType(types: ('smooth' | 'corner')[] | undefined, index: numbe
 
 function resampleNodeTypes(types: ('smooth' | 'corner')[] | undefined, nextCount: number): ('smooth' | 'corner')[] | undefined {
   if (!types || types.length === 0) return undefined;
+  if (nextCount <= 0) return undefined;
+  if (nextCount === 1) return [types[0] ?? 'smooth'];
   // Resample node types using nearest-neighbor mapping
   return Array.from({ length: nextCount }, (_, i) => {
     const srcIndex = Math.round(i / (nextCount - 1) * (types.length - 1));
@@ -165,28 +167,19 @@ function inflateScale(partial: Partial<ColorScale>, fallbackName: string): Color
 
   const baseCurves = buildDefaultCurves(sourceOklch, stepCount);
 
+  const inflateCurve = (channel: 'lightness' | 'chroma' | 'hue', fallback: number) => {
+    const saved = partial.curves?.[channel];
+    return {
+      values: ensureCurve(saved?.values, stepCount, fallback),
+      ...(saved?.nodeTypes ? { nodeTypes: resampleNodeTypes(saved.nodeTypes, stepCount) } : {}),
+      ...(typeof saved?.smoothing === 'number' ? { smoothing: Math.max(0, Math.min(1, saved.smoothing)) } : {}),
+    };
+  };
+
   const curves = {
-    lightness: {
-      values: ensureCurve(
-        partial.curves?.lightness?.values,
-        stepCount,
-        baseCurves.lightness.values[0] ?? sourceOklch.l
-      ),
-    },
-    chroma: {
-      values: ensureCurve(
-        partial.curves?.chroma?.values,
-        stepCount,
-        partial.chromaPeak ?? sourceOklch.c
-      ),
-    },
-    hue: {
-      values: ensureCurve(
-        partial.curves?.hue?.values,
-        stepCount,
-        0
-      ),
-    },
+    lightness: inflateCurve('lightness', baseCurves.lightness.values[0] ?? sourceOklch.l),
+    chroma: inflateCurve('chroma', partial.chromaPeak ?? sourceOklch.c),
+    hue: inflateCurve('hue', 0),
   };
 
   const fallbackPreset = stepCount === 11 ? 'tailwind' : 'numeric';

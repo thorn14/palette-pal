@@ -223,12 +223,12 @@ export function RightPanel({ scale, activeStep }: Props) {
         ).map(({ key, label, color }) => {
           const value = scale.curves[key].smoothing ?? 0;
           return (
-            <div key={key} style={{ marginBottom: 10 }}>
+            <label key={key} style={{ display: 'block', marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                <label style={{ fontSize: 12, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ fontSize: 12, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: color, display: 'inline-block', flexShrink: 0 }} />
                   {label}
-                </label>
+                </span>
                 <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-tertiary)' }}>
                   {(value * 100).toFixed(0)}%
                 </span>
@@ -242,7 +242,7 @@ export function RightPanel({ scale, activeStep }: Props) {
                 onChange={(e) => updateCurveSmoothing(scale.id, key, parseFloat(e.target.value))}
                 style={{ width: '100%', accentColor: color }}
               />
-            </div>
+            </label>
           );
         })}
       </div>
