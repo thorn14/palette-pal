@@ -136,7 +136,8 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
 
     if (event.key === 'ArrowUp') {
       event.preventDefault();
-      items[(activeIndex - 1 + items.length) % items.length]?.focus();
+      const previousIndex = activeIndex === -1 ? items.length : activeIndex;
+      items[(previousIndex - 1 + items.length) % items.length]?.focus();
     }
   }
 

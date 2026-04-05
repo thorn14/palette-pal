@@ -137,9 +137,18 @@ export function PaletteColorWheel() {
             return (
               <g
                 key={`${m.scaleId}-${m.stepName}`}
+                role="button"
+                tabIndex={0}
+                aria-label={`${m.scaleName} ${m.stepName} · ${m.hex}`}
                 style={{ pointerEvents: 'auto', cursor: 'pointer', opacity }}
                 onMouseEnter={() => setSelectedScaleId(m.scaleId)}
                 onFocus={() => setSelectedScaleId(m.scaleId)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setSelectedScaleId(m.scaleId);
+                  }
+                }}
               >
                 <title>{`${m.scaleName} ${m.stepName} · ${m.hex}`}</title>
                 <circle

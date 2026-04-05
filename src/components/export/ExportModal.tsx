@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { usePaletteStore } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
@@ -86,8 +86,30 @@ export function ExportModal({ onClose }: Props) {
   const scales = usePaletteStore((s) => s.scales);
   const ramps = useMemo(() => scales.map((scale) => generateRamp(scale)), [scales]);
 
+  const tabs: Tab[] = ['tokens', 'contrast-wcag', 'contrast-apca'];
   const [activeTab, setActiveTab] = useState<Tab>('tokens');
   const [copied, setCopied] = useState(false);
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const handleTabKeyDown = useCallback((event: React.KeyboardEvent) => {
+    const currentIndex = tabs.indexOf(activeTab);
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % tabs.length;
+    } else if (event.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    setActiveTab(tabs[nextIndex]);
+    setCopied(false);
+    tabRefs.current[nextIndex]?.focus();
+  }, [activeTab]);
 
   const exportCacheRef = useRef<{
     ramps: typeof ramps | null;
@@ -204,25 +226,43 @@ export function ExportModal({ onClose }: Props) {
         <div
           role="tablist"
           aria-label="Export format"
+          onKeyDown={handleTabKeyDown}
           style={{
             display: 'flex',
             borderBottom: '1px solid var(--p-border)',
             padding: '0 8px',
           }}
         >
-          <button role="tab" aria-selected={activeTab === 'tokens'} style={tabStyle(activeTab === 'tokens')} onClick={() => { setActiveTab('tokens'); setCopied(false); }} className="focus-visible-ring">
-            Design Tokens
-          </button>
-          <button role="tab" aria-selected={activeTab === 'contrast-wcag'} style={tabStyle(activeTab === 'contrast-wcag')} onClick={() => { setActiveTab('contrast-wcag'); setCopied(false); }} className="focus-visible-ring">
-            Contrast — WCAG
-          </button>
-          <button role="tab" aria-selected={activeTab === 'contrast-apca'} style={tabStyle(activeTab === 'contrast-apca')} onClick={() => { setActiveTab('contrast-apca'); setCopied(false); }} className="focus-visible-ring">
-            Contrast — APCA
-          </button>
+          {tabs.map((tab, i) => {
+            const label = tab === 'tokens' ? 'Design Tokens' : tab === 'contrast-wcag' ? 'Contrast — WCAG' : 'Contrast — APCA';
+            return (
+              <button
+                key={tab}
+                ref={(node) => { tabRefs.current[i] = node; }}
+                role="tab"
+                id={`export-tab-${tab}`}
+                aria-selected={activeTab === tab}
+                aria-controls={`export-tabpanel-${tab}`}
+                tabIndex={activeTab === tab ? 0 : -1}
+                style={tabStyle(activeTab === tab)}
+                onClick={() => { setActiveTab(tab); setCopied(false); }}
+                className="focus-visible-ring"
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Virtualized JSON content */}
-        <VirtualizedPre text={json} />
+        <div
+          role="tabpanel"
+          id={`export-tabpanel-${activeTab}`}
+          aria-labelledby={`export-tab-${activeTab}`}
+          style={{ display: 'flex', flex: 1, minHeight: 0 }}
+        >
+          <VirtualizedPre text={json} />
+        </div>
 
         {/* Footer */}
         <div

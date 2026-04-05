@@ -29,6 +29,7 @@ function ColorSwatchTooltip({
   return (
     <div
       ref={wrapperRef}
+      role="cell"
       style={{ position: 'relative', height: 48 }}
       onMouseEnter={() => setVisible(true)}
       onMouseLeave={() => setVisible(false)}
@@ -204,21 +205,23 @@ export function PalettePreview({ onEditScale }: PalettePreviewProps) {
             zIndex: 3,
           }}
         >
-          <div
-            role="columnheader"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              paddingInline: 12,
-              fontSize: 11,
-              fontWeight: 600,
-              fontFamily: 'monospace',
-              color: 'var(--p-text-secondary)',
-            }}
-          >
-            Name
+          <div role="row" style={{ display: 'contents' }}>
+            <div
+              role="columnheader"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                paddingInline: 12,
+                fontSize: 11,
+                fontWeight: 600,
+                fontFamily: 'monospace',
+                color: 'var(--p-text-secondary)',
+              }}
+            >
+              Name
+            </div>
+            <HeaderRow scale={firstScale} />
           </div>
-          <HeaderRow scale={firstScale} />
         </div>
 
         {/* Rows */}
