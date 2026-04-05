@@ -186,7 +186,7 @@ function FilterBar({
         aria-label="Search color combinations"
         spellCheck={false}
         className="focus-visible-ring"
-        style={{ ...selectStyle, width: 180 }}
+        style={{ ...selectStyle, width: 180, cursor: 'text' }}
       />
 
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>

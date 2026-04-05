@@ -380,11 +380,9 @@ export function RightPanel({ scale, activeStep }: Props) {
                 </span>
                 <button
                   aria-label={`Copy hex value ${activeStep.hex}`}
-                  className="focus-visible-ring"
-                  style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--p-text)', cursor: 'pointer', background: 'none', border: 'none', padding: 0, textDecoration: 'underline', textDecorationColor: 'transparent', textUnderlineOffset: 2 }}
+                  className="focus-visible-ring copyable-value"
+                  style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--p-text)', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
                   title="Click to copy"
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.textDecorationColor = 'var(--p-text-secondary)'; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.textDecorationColor = 'transparent'; }}
                   onClick={() => navigator.clipboard?.writeText(activeStep.hex)?.catch(() => {})}
                 >
                   {activeStep.hex}
@@ -398,11 +396,9 @@ export function RightPanel({ scale, activeStep }: Props) {
                   </span>
                   <button
                     aria-label={`Copy Display P3 value ${activeStep.displayP3}`}
-                    className="focus-visible-ring"
-                    style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--p-text)', cursor: 'pointer', textAlign: 'right', wordBreak: 'break-all', background: 'none', border: 'none', padding: 0, textDecoration: 'underline', textDecorationColor: 'transparent', textUnderlineOffset: 2 }}
+                    className="focus-visible-ring copyable-value"
+                    style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--p-text)', cursor: 'pointer', textAlign: 'right', wordBreak: 'break-all', background: 'none', border: 'none', padding: 0 }}
                     title="Click to copy"
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.textDecorationColor = 'var(--p-text-secondary)'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.textDecorationColor = 'transparent'; }}
                     onClick={() => navigator.clipboard?.writeText(activeStep.displayP3!)?.catch(() => {})}
                   >
                     {activeStep.displayP3}

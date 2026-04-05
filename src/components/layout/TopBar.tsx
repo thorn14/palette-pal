@@ -94,7 +94,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
     }
   }, [menuOpen]);
 
-  function handleRadioGroupKeyDown<T extends string>(
+  function handleRadioGroupKeyDown<T>(
     event: React.KeyboardEvent,
     values: readonly T[],
     current: T,
@@ -317,19 +317,16 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
       <div
         role="radiogroup"
         aria-label="Gamut preview"
-        onKeyDown={(event) => {
-          const gamutValues = [false, true] as const;
-          const currentIndex = gamutValues.indexOf(srgbPreview);
-          let nextIndex = currentIndex;
-          if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-            nextIndex = (currentIndex + 1) % gamutValues.length;
-          } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-            nextIndex = (currentIndex - 1 + gamutValues.length) % gamutValues.length;
-          } else { return; }
-          event.preventDefault();
-          if (gamutValues[nextIndex] !== srgbPreview) onToggleSrgbPreview();
-          gamutButtonsRef.current[nextIndex]?.focus();
-        }}
+        onKeyDown={(event) =>
+          handleRadioGroupKeyDown(
+            event,
+            [false, true] as const,
+            srgbPreview,
+            (nextValue) => {
+              if (nextValue !== srgbPreview) onToggleSrgbPreview();
+            },
+            gamutButtonsRef,
+          )}
         style={{
           display: 'flex',
           border: '1px solid var(--p-border)',

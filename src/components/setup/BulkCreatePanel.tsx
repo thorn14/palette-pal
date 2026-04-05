@@ -31,6 +31,7 @@ const sectionLabel: React.CSSProperties = {
 };
 
 const fieldLabel: React.CSSProperties = {
+  display: 'block',
   fontSize: 12,
   color: 'var(--p-text-secondary)',
   marginBottom: 4,
