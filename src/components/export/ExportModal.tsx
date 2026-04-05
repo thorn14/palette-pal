@@ -1,33 +1,128 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { usePaletteStore } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
 import { exportToJSON } from '../../lib/exportTokens';
+import { exportWcagContrastMapJSON, exportApcaContrastMapJSON } from '../../lib/exportContrastMap';
 
 interface Props {
   onClose: () => void;
 }
 
+type Tab = 'tokens' | 'contrast-wcag' | 'contrast-apca';
+
+const tabStyle = (active: boolean): React.CSSProperties => ({
+  padding: '6px 14px',
+  fontSize: 12,
+  fontWeight: 500,
+  background: active ? 'var(--p-bg-inset)' : 'transparent',
+  border: 'none',
+  borderBottom: active ? '2px solid var(--p-accent)' : '2px solid transparent',
+  cursor: 'pointer',
+  color: active ? 'var(--p-text)' : 'var(--p-text-secondary)',
+});
+
+function VirtualizedPre({ text }: { text: string }) {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const lines = useMemo(() => text.split('\n'), [text]);
+
+  const virtualizer = useVirtualizer({
+    count: lines.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 18,
+    overscan: 30,
+  });
+
+  return (
+    <div
+      ref={parentRef}
+      style={{
+        flex: 1,
+        overflow: 'auto',
+        background: 'var(--p-bg-subtle)',
+        padding: '12px 0',
+      }}
+    >
+      <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+        {virtualizer.getVirtualItems().map((vItem) => (
+          <div
+            key={vItem.index}
+            style={{
+              position: 'absolute',
+              top: vItem.start,
+              left: 0,
+              right: 0,
+              height: vItem.size,
+              padding: '0 20px',
+              fontSize: 12,
+              fontFamily: 'monospace',
+              whiteSpace: 'pre',
+              lineHeight: '18px',
+              display: 'flex',
+            }}
+          >
+            <span style={{ display: 'inline-block', width: 44, textAlign: 'right', marginRight: 12, color: 'var(--p-text-tertiary)', userSelect: 'none', flexShrink: 0 }}>
+              {vItem.index + 1}
+            </span>
+            <span style={{ color: 'var(--p-text-secondary)' }}>{lines[vItem.index]}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function downloadJSON(json: string, filename: string) {
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 export function ExportModal({ onClose }: Props) {
   const scales = usePaletteStore((s) => s.scales);
-  const ramps = scales.map((scale) => generateRamp(scale));
-  const json = exportToJSON(ramps);
+  const ramps = useMemo(() => scales.map((scale) => generateRamp(scale)), [scales]);
+
+  const [activeTab, setActiveTab] = useState<Tab>('tokens');
   const [copied, setCopied] = useState(false);
+
+  const exportCacheRef = useRef<{
+    ramps: typeof ramps | null;
+    tokens?: string;
+    wcag?: string;
+    apca?: string;
+  }>({ ramps: null });
+
+  if (exportCacheRef.current.ramps !== ramps) {
+    exportCacheRef.current = { ramps };
+  }
+
+  const json = useMemo(() => {
+    const cache = exportCacheRef.current;
+    if (activeTab === 'tokens') {
+      if (cache.tokens === undefined) cache.tokens = exportToJSON(ramps);
+      return cache.tokens;
+    }
+    if (activeTab === 'contrast-wcag') {
+      if (cache.wcag === undefined) cache.wcag = exportWcagContrastMapJSON(ramps);
+      return cache.wcag;
+    }
+    if (cache.apca === undefined) cache.apca = exportApcaContrastMapJSON(ramps);
+    return cache.apca;
+  }, [ramps, activeTab]);
+  const downloadName =
+    activeTab === 'tokens' ? 'design-tokens.json'
+    : activeTab === 'contrast-wcag' ? 'contrast-map-wcag.json'
+    : 'contrast-map-apca.json';
 
   function handleCopy() {
     navigator.clipboard.writeText(json).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
-  }
-
-  function handleDownload() {
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'design-tokens.json';
-    a.click();
-    URL.revokeObjectURL(url);
   }
 
   return (
@@ -68,7 +163,7 @@ export function ExportModal({ onClose }: Props) {
           }}
         >
           <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
-            Export — W3C Design Tokens
+            Export
           </h2>
           <button
             onClick={onClose}
@@ -91,22 +186,27 @@ export function ExportModal({ onClose }: Props) {
           </button>
         </div>
 
-        {/* JSON content */}
-        <pre
+        {/* Tabs */}
+        <div
           style={{
-            flex: 1,
-            overflow: 'auto',
-            padding: 20,
-            margin: 0,
-            fontSize: 12,
-            fontFamily: 'monospace',
-            color: 'var(--p-text-secondary)',
-            background: 'var(--p-bg-subtle)',
-            whiteSpace: 'pre',
+            display: 'flex',
+            borderBottom: '1px solid var(--p-border)',
+            padding: '0 8px',
           }}
         >
-          {json}
-        </pre>
+          <button style={tabStyle(activeTab === 'tokens')} onClick={() => { setActiveTab('tokens'); setCopied(false); }}>
+            Design Tokens
+          </button>
+          <button style={tabStyle(activeTab === 'contrast-wcag')} onClick={() => { setActiveTab('contrast-wcag'); setCopied(false); }}>
+            Contrast — WCAG
+          </button>
+          <button style={tabStyle(activeTab === 'contrast-apca')} onClick={() => { setActiveTab('contrast-apca'); setCopied(false); }}>
+            Contrast — APCA
+          </button>
+        </div>
+
+        {/* Virtualized JSON content */}
+        <VirtualizedPre text={json} />
 
         {/* Footer */}
         <div
@@ -115,6 +215,7 @@ export function ExportModal({ onClose }: Props) {
             gap: 8,
             padding: '14px 20px',
             borderTop: '1px solid var(--p-border)',
+            flexWrap: 'wrap',
           }}
         >
           <button
@@ -132,7 +233,7 @@ export function ExportModal({ onClose }: Props) {
             {copied ? 'Copied!' : 'Copy JSON'}
           </button>
           <button
-            onClick={handleDownload}
+            onClick={() => downloadJSON(json, downloadName)}
             style={{
               padding: '6px 14px',
               fontSize: 13,
@@ -144,8 +245,40 @@ export function ExportModal({ onClose }: Props) {
               fontWeight: 500,
             }}
           >
-            Download .json
+            Download {downloadName}
           </button>
+          {activeTab === 'tokens' && (
+            <>
+              <button
+                onClick={() => downloadJSON(exportWcagContrastMapJSON(ramps), 'contrast-map-wcag.json')}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  background: 'var(--p-bg-subtle)',
+                  border: '1px solid var(--p-border)',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  color: 'var(--p-text-secondary)',
+                }}
+              >
+                + WCAG Map
+              </button>
+              <button
+                onClick={() => downloadJSON(exportApcaContrastMapJSON(ramps), 'contrast-map-apca.json')}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  background: 'var(--p-bg-subtle)',
+                  border: '1px solid var(--p-border)',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  color: 'var(--p-text-secondary)',
+                }}
+              >
+                + APCA Map
+              </button>
+            </>
+          )}
           <button
             onClick={onClose}
             style={{

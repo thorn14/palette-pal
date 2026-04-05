@@ -1,4 +1,5 @@
 import { parse, oklch, formatHex, wcagContrast, clampChroma, converter } from 'culori';
+import { APCAcontrast, sRGBtoY } from 'apca-w3';
 import type { ColorScale, OklchColor, GeneratedStep, GeneratedRamp, ContrastResult, WCAGLevel, GamutLevel } from '../types/palette';
 
 const toRgb = converter('rgb');
@@ -74,6 +75,16 @@ export function getContrast(hexA: string, hexB: string): ContrastResult {
   else if (ratio >= 3) level = 'AA-large';
   else level = 'fail';
   return { ratio, level };
+}
+
+// APCA contrast Lc value (signed: positive = dark-on-light, negative = light-on-dark)
+export function getApcaContrast(hexFg: string, hexBg: string): number {
+  const fg = toRgb(parse(hexFg));
+  const bg = toRgb(parse(hexBg));
+  if (!fg || !bg) return 0;
+  const fgY = sRGBtoY([(fg.r ?? 0) * 255, (fg.g ?? 0) * 255, (fg.b ?? 0) * 255]);
+  const bgY = sRGBtoY([(bg.r ?? 0) * 255, (bg.g ?? 0) * 255, (bg.b ?? 0) * 255]);
+  return APCAcontrast(fgY, bgY) as number;
 }
 
 // Classify a pre-clamped OKLCH color into its gamut tier
@@ -213,17 +224,34 @@ export function buildDefaultCurves(sourceOklch: OklchColor, stepCount: number): 
   };
 }
 
+// Non-destructive smoothing: blends each interior node toward a weighted neighbor average.
+// Leaf nodes (first/last) are always preserved exactly.
+export function smoothCurveValues(values: number[], smoothing: number): number[] {
+  if (smoothing <= 0 || values.length <= 2) return values;
+  const result = values.slice();
+  const t = Math.min(1, Math.max(0, smoothing));
+  for (let i = 1; i < values.length - 1; i++) {
+    const avg = values[i - 1] * 0.25 + values[i] * 0.5 + values[i + 1] * 0.25;
+    result[i] = values[i] + (avg - values[i]) * t;
+  }
+  return result;
+}
+
 // Core ramp generation algorithm
 export function generateRamp(scale: ColorScale): GeneratedRamp {
   const { id, name, sourceOklch, stepCount, naming, curves, hueShift } = scale;
   const stepNames = resolveStepNames(naming.preset, stepCount, naming.customNames);
 
+  const lv = smoothCurveValues(curves.lightness.values, curves.lightness.smoothing ?? 0);
+  const cv = smoothCurveValues(curves.chroma.values, curves.chroma.smoothing ?? 0);
+  const hv = smoothCurveValues(curves.hue.values, curves.hue.smoothing ?? 0);
+
   const steps: GeneratedStep[] = [];
 
   for (let i = 0; i < stepCount; i++) {
-    const l = curves.lightness.values[i] ?? sourceOklch.l;
-    const c = curves.chroma.values[i] ?? sourceOklch.c;
-    const baseDeltaH = curves.hue.values[i] ?? 0;
+    const l = lv[i] ?? sourceOklch.l;
+    const c = cv[i] ?? sourceOklch.c;
+    const baseDeltaH = hv[i] ?? 0;
 
     // t=0 is lightest (i=0), t=1 is darkest (i=stepCount-1)
     const t = stepCount === 1 ? 0 : i / (stepCount - 1);

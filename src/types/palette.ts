@@ -1,6 +1,10 @@
 export interface OklchColor { l: number; c: number; h: number; alpha?: number }
 
-export interface CurvePoints { values: number[] }  // one per step
+export interface CurvePoints {
+  values: number[];
+  nodeTypes?: ('smooth' | 'corner')[];  // per-step; defaults to 'smooth'
+  smoothing?: number;                    // 0–1; non-destructive, applied in generateRamp
+}
 
 export interface CurveConfig {
   lightness: CurvePoints;  // 0–1 per step
@@ -54,10 +58,18 @@ export interface GeneratedRamp {
 export type WCAGLevel = 'AAA' | 'AA' | 'AA-large' | 'fail';
 export interface ContrastResult { ratio: number; level: WCAGLevel }
 
+export type ContrastMode = 'wcag' | 'apca';
+
+export interface ContrastMapColorRef { ramp: string; step: string; hex: string }
+export interface WcagMapEntry { fg: ContrastMapColorRef; bg: ContrastMapColorRef; ratio: number }
+export interface ApcaMapEntry { fg: ContrastMapColorRef; bg: ContrastMapColorRef; lc: number }
+
 export interface PaletteState {
   scales: ColorScale[];
   activeScaleId: string | null;
   focusedStepRef: { scaleId: string; stepName: string } | null;
+  contrastMode: ContrastMode;
+  srgbPreview: boolean;
 }
 
 // W3C DTCG 2025.10 color value format

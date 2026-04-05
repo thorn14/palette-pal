@@ -1,9 +1,10 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-
-const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 import type { ColorScale, GeneratedRamp } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
-import { getContrast, computeHueShift } from '../../lib/colorMath';
+import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues } from '../../lib/colorMath';
+import { buildCurvePath } from '../../lib/curveInterpolation';
+
+const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
 type CurveKey = 'lightness' | 'chroma' | 'hue';
 
@@ -20,7 +21,21 @@ const WCAG_STYLES: Record<string, { bg: string; text: string; label: string }> =
   fail:       { bg: 'var(--badge-fail-bg)', text: 'var(--badge-fail-text)', label: 'Fail' },
 };
 
-interface DragState { curveKey: CurveKey; stepIndex: number }
+function getApcaBadge(lc: number): { bg: string; text: string; label: string } {
+  const absLc = Math.abs(lc);
+  if (absLc >= 75) return { bg: 'var(--p-success-subtle)', text: 'var(--p-success)', label: 'Lc 75+' };
+  if (absLc >= 60) return { bg: 'var(--p-success-subtle)', text: 'var(--p-success)', label: 'Lc 60+' };
+  if (absLc >= 45) return { bg: 'var(--p-success-subtle)', text: 'var(--p-success)', label: 'Lc 45+' };
+  return { bg: 'var(--badge-fail-bg)', text: 'var(--badge-fail-text)', label: 'Fail' };
+}
+
+interface DragState {
+  curveKey: CurveKey;
+  stepIndex: number;          // -1 for group drag
+  mode: 'node' | 'group';
+  dragStartClientY: number;
+  groupStartValues: number[]; // snapshot of all values at group-drag start
+}
 
 interface Props {
   scale: ColorScale;
@@ -29,14 +44,29 @@ interface Props {
   onStepClick: (idx: number) => void;
 }
 
+// Keyboard shortcut descriptions shown in the help tooltip
+const SHORTCUTS = [
+  { key: 'Drag line',         desc: 'Shift entire curve up/down' },
+  { key: 'Drag node',         desc: 'Move single control point'  },
+  { key: 'Alt + click node',  desc: 'Toggle smooth ↔ corner'     },
+  { key: 'Shift + drag node', desc: 'Snap to smooth interpolation'},
+  { key: 'Escape',            desc: 'Cancel drag'                 },
+];
+
 export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }: Props) {
-  const updateCurveValue = usePaletteStore((s) => s.updateCurveValue);
+  const contrastMode = usePaletteStore((s) => s.contrastMode);
+  const updateCurveValue  = usePaletteStore((s) => s.updateCurveValue);
+  const updateCurveValues = usePaletteStore((s) => s.updateCurveValues);
+  const updateCurveNodeType = usePaletteStore((s) => s.updateCurveNodeType);
   const srgbPreview = usePaletteStore((s) => s.srgbPreview);
   const containerRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef(scale);
   useEffect(() => { scaleRef.current = scale; }, [scale]);
-  const [dragState, setDragState] = useState<DragState | null>(null);
-  const [size, setSize] = useState({ width: 800, height: 400 });
+
+  const [dragState, setDragState]   = useState<DragState | null>(null);
+  const [preCancel, setPreCancel]   = useState<{ key: CurveKey; values: number[] } | null>(null);
+  const [size, setSize]             = useState({ width: 800, height: 400 });
+  const [showHelp, setShowHelp]     = useState(false);
   const n = ramp.steps.length;
   const PAD = 18;
 
@@ -50,39 +80,101 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
     return () => ro.disconnect();
   }, []);
 
+  // ─── Pointer move ─────────────────────────────────────────────────────────
   const handlePointerMove = useCallback((e: PointerEvent) => {
     if (!dragState || !containerRef.current) return;
     const s = scaleRef.current;
     const meta = CURVES.find((c) => c.key === dragState.curveKey)!;
     const rect = containerRef.current.getBoundingClientRect();
+
+    if (dragState.mode === 'group') {
+      const deltaY = e.clientY - dragState.dragStartClientY;
+      const valueDelta = -(deltaY / (size.height - PAD * 2)) * (meta.max - meta.min);
+      const newValues = dragState.groupStartValues.map((v) =>
+        Math.max(meta.min, Math.min(meta.max, v + valueDelta))
+      );
+      // For hue: adjust each stored delta so display stays coherent
+      if (dragState.curveKey === 'hue') {
+        const adjusted = newValues.map((displayV, i) => {
+          const t = n <= 1 ? 0 : i / (n - 1);
+          const shift = computeHueShift(s.sourceOklch.h, t, s.hueShift.lightEndAdjust, s.hueShift.darkEndAdjust);
+          return displayV - shift;
+        });
+        updateCurveValues(s.id, dragState.curveKey, adjusted);
+      } else {
+        updateCurveValues(s.id, dragState.curveKey, newValues);
+      }
+      return;
+    }
+
+    // Node drag
     const norm = 1 - (e.clientY - rect.top - PAD) / (size.height - PAD * 2);
     const clamped = Math.max(0, Math.min(1, norm));
     let value = meta.min + clamped * (meta.max - meta.min);
-    // For H: user drags the effective (combined) hue; store only the manual delta
+
+    // Shift held: snap value toward smooth neighbor average
+    if (e.shiftKey && n >= 3) {
+      const i = dragState.stepIndex;
+      const rawValues = s.curves[dragState.curveKey].values;
+      if (i > 0 && i < n - 1) {
+        let prev = rawValues[i - 1] ?? value;
+        let next = rawValues[i + 1] ?? value;
+        // For hue: compute neighbors in display space (raw + hueShift) to match `value`
+        if (dragState.curveKey === 'hue') {
+          const tPrev = (i - 1) / (n - 1);
+          const tNext = (i + 1) / (n - 1);
+          prev += computeHueShift(s.sourceOklch.h, tPrev, s.hueShift.lightEndAdjust, s.hueShift.darkEndAdjust);
+          next += computeHueShift(s.sourceOklch.h, tNext, s.hueShift.lightEndAdjust, s.hueShift.darkEndAdjust);
+        }
+        const smoothTarget = prev * 0.25 + value * 0.5 + next * 0.25;
+        value = smoothTarget;
+      }
+    }
+
+    // For H: store only the manual delta
     if (dragState.curveKey === 'hue') {
       const t = n <= 1 ? 0 : dragState.stepIndex / (n - 1);
       const shift = computeHueShift(s.sourceOklch.h, t, s.hueShift.lightEndAdjust, s.hueShift.darkEndAdjust);
       value = value - shift;
     }
-    updateCurveValue(s.id, dragState.curveKey, dragState.stepIndex, value);
-  }, [dragState, size.height, updateCurveValue, n]);
 
+    updateCurveValue(s.id, dragState.curveKey, dragState.stepIndex, value);
+  }, [dragState, size.height, updateCurveValue, updateCurveValues, n]);
+
+  // ─── Pointer up ───────────────────────────────────────────────────────────
   const handlePointerUp = useCallback(() => {
     setDragState(null);
+    setPreCancel(null);
     document.body.style.cursor = '';
   }, []);
+
+  // ─── Escape cancels drag ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!dragState) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && preCancel) {
+        updateCurveValues(scaleRef.current.id, preCancel.key, preCancel.values);
+        setDragState(null);
+        setPreCancel(null);
+        document.body.style.cursor = '';
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [dragState, preCancel, updateCurveValues]);
 
   useEffect(() => {
     if (!dragState) return;
     document.addEventListener('pointermove', handlePointerMove);
     document.addEventListener('pointerup', handlePointerUp);
-    document.body.style.cursor = 'ns-resize';
+    document.body.style.cursor = dragState.mode === 'group' ? 'grabbing' : 'ns-resize';
     return () => {
       document.removeEventListener('pointermove', handlePointerMove);
       document.removeEventListener('pointerup', handlePointerUp);
     };
   }, [dragState, handlePointerMove, handlePointerUp]);
 
+  // ─── Coordinate helpers ───────────────────────────────────────────────────
   function getPoint(value: number, stepIndex: number, min: number, max: number) {
     const norm = (value - min) / (max - min);
     const x = (stepIndex + 0.5) / n * size.width;
@@ -153,7 +245,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
           className="absolute inset-0 w-full h-full"
           style={{ pointerEvents: 'none', overflow: 'visible' }}
         >
-          {/* P3 threshold lines — one per step, in the chroma coordinate space */}
+          {/* P3 threshold lines */}
           {ramp.steps.map((step, i) => {
             const chromaMeta = CURVES.find((c) => c.key === 'chroma')!;
             const pt = getPoint(step.maxSrgbC, i, chromaMeta.min, chromaMeta.max);
@@ -173,68 +265,220 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
           })}
 
           {CURVES.map((curve) => {
-            // For the H curve, display the effective hue offset (manual delta + hue shift)
-            // so warm/cool sliders are visually reflected in the curve
             const rawValues = scale.curves[curve.key].values;
-            const values = curve.key === 'hue'
+            const smoothing = scale.curves[curve.key].smoothing ?? 0;
+            const nodeTypes = scale.curves[curve.key].nodeTypes;
+
+            // Smooth raw values first, then add hue shift — matches generateRamp order
+            const smoothedRaw = smoothCurveValues(rawValues, smoothing);
+            const effectiveSmoothed = curve.key === 'hue'
+              ? smoothedRaw.map((v, i) => {
+                  const t = n <= 1 ? 0 : i / (n - 1);
+                  return v + computeHueShift(scale.sourceOklch.h, t, scale.hueShift.lightEndAdjust, scale.hueShift.darkEndAdjust);
+                })
+              : smoothedRaw;
+
+            // Points for path (smoothed positions — matches color generation)
+            const pathPoints = effectiveSmoothed.map((v, i) => getPoint(v, i, curve.min, curve.max));
+
+            // Node display values: raw + hue shift (unsmoothed, showing actual control point positions)
+            const nodeDisplay = curve.key === 'hue'
               ? rawValues.map((v, i) => {
                   const t = n <= 1 ? 0 : i / (n - 1);
                   return v + computeHueShift(scale.sourceOklch.h, t, scale.hueShift.lightEndAdjust, scale.hueShift.darkEndAdjust);
                 })
               : rawValues;
-            const points = values.map((v, i) => getPoint(v, i, curve.min, curve.max));
-            const polyline = points.map((p) => `${p.x},${p.y}`).join(' ');
+
+            // Points for nodes (raw positions — show where the control points actually are)
+            const nodePoints = nodeDisplay.map((v, i) => getPoint(v, i, curve.min, curve.max));
+
+            const resolvedNodeTypes: ('smooth' | 'corner')[] =
+              pathPoints.map((_, i) => nodeTypes?.[i] ?? 'smooth');
+
+            const pathD = buildCurvePath(pathPoints, resolvedNodeTypes);
+
+            const isGroupDragging = dragState?.mode === 'group' && dragState.curveKey === curve.key;
+            const isAnyDragging   = dragState?.curveKey === curve.key;
 
             return (
               <g key={curve.key}>
                 {/* Label on left edge */}
-                {points[0] && (
+                {nodePoints[0] && (
                   <text
                     x={8}
-                    y={points[0].y}
+                    y={nodePoints[0].y}
                     dy={4}
                     fontSize={11}
                     fontWeight={700}
                     fill={curve.color}
-                    style={{ fontFamily: 'monospace' }}
+                    style={{ fontFamily: 'monospace', pointerEvents: 'none' }}
                   >
                     {curve.label}
                   </text>
                 )}
 
-                {/* Connecting line */}
-                <polyline
-                  points={polyline}
+                {/* Invisible wide hit area for group drag */}
+                <path
+                  d={pathD}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth={12}
+                  style={{ cursor: 'grab', pointerEvents: 'stroke' }}
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setPreCancel({ key: curve.key, values: rawValues.slice() });
+                    setDragState({
+                      curveKey: curve.key,
+                      stepIndex: -1,
+                      mode: 'group',
+                      dragStartClientY: e.clientY,
+                      groupStartValues: nodeDisplay.slice(),
+                    });
+                  }}
+                />
+
+                {/* Visible curve path */}
+                <path
+                  d={pathD}
                   fill="none"
                   stroke={curve.color}
-                  strokeWidth={1.5}
-                  opacity={0.9}
+                  strokeWidth={isGroupDragging ? 2.5 : 1.5}
+                  opacity={isGroupDragging ? 1 : 0.9}
+                  style={{ pointerEvents: 'none' }}
                 />
 
                 {/* Draggable control points */}
-                {points.map((pt, i) => (
-                  <circle
-                    key={i}
-                    cx={pt.x}
-                    cy={pt.y}
-                    r={dragState?.curveKey === curve.key && dragState.stepIndex === i ? 6 : 4.5}
-                    fill="white"
-                    stroke={curve.color}
-                    strokeWidth={2}
-                    style={{ cursor: 'ns-resize', pointerEvents: 'all' }}
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      setDragState({ curveKey: curve.key, stepIndex: i });
-                    }}
-                  />
-                ))}
+                {nodePoints.map((pt, i) => {
+                  const isCorner = resolvedNodeTypes[i] === 'corner';
+                  const isActive = isAnyDragging && dragState?.stepIndex === i && dragState?.mode === 'node';
+                  const r = isActive ? 6 : 4.5;
+
+                  return (
+                    <g
+                      key={i}
+                      style={{ pointerEvents: 'all' }}
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        // Alt+click: toggle smooth/corner
+                        if (e.altKey) {
+                          const current = nodeTypes?.[i] ?? 'smooth';
+                          updateCurveNodeType(scale.id, curve.key, i, current === 'smooth' ? 'corner' : 'smooth');
+                          return;
+                        }
+
+                        setPreCancel({ key: curve.key, values: rawValues.slice() });
+                        setDragState({
+                          curveKey: curve.key,
+                          stepIndex: i,
+                          mode: 'node',
+                          dragStartClientY: e.clientY,
+                          groupStartValues: [],
+                        });
+                      }}
+                    >
+                      {isCorner ? (
+                        // Diamond shape for corner nodes
+                        <rect
+                          x={pt.x - r * 0.75}
+                          y={pt.y - r * 0.75}
+                          width={r * 1.5}
+                          height={r * 1.5}
+                          transform={`rotate(45 ${pt.x} ${pt.y})`}
+                          fill="white"
+                          stroke={curve.color}
+                          strokeWidth={2}
+                          style={{ cursor: 'ns-resize' }}
+                        />
+                      ) : (
+                        // Circle for smooth nodes
+                        <circle
+                          cx={pt.x}
+                          cy={pt.y}
+                          r={r}
+                          fill="white"
+                          stroke={curve.color}
+                          strokeWidth={2}
+                          style={{ cursor: 'ns-resize' }}
+                        />
+                      )}
+                    </g>
+                  );
+                })}
               </g>
             );
           })}
+
+          {/* Help button */}
+          <foreignObject
+            x={size.width - 28}
+            y={4}
+            width={24}
+            height={24}
+            style={{ pointerEvents: 'all' }}
+          >
+            <button
+              onMouseEnter={() => setShowHelp(true)}
+              onMouseLeave={() => setShowHelp(false)}
+              onFocus={() => setShowHelp(true)}
+              onBlur={() => setShowHelp(false)}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: '50%',
+                background: 'rgba(0,0,0,0.35)',
+                color: 'rgba(255,255,255,0.85)',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 1,
+              }}
+              aria-label="Keyboard shortcuts"
+            >
+              ?
+            </button>
+          </foreignObject>
+
+          {/* Shortcut tooltip */}
+          {showHelp && (
+            <foreignObject x={size.width - 240} y={32} width={232} height={SHORTCUTS.length * 24 + 16} style={{ pointerEvents: 'none' }}>
+              <div
+                style={{
+                  background: 'rgba(0,0,0,0.82)',
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  backdropFilter: 'blur(4px)',
+                }}
+              >
+                {SHORTCUTS.map(({ key, desc }) => (
+                  <div key={key} style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginBottom: 2 }}>
+                    <span style={{
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                      color: 'rgba(255,255,255,0.6)',
+                      flexShrink: 0,
+                      minWidth: 120,
+                    }}>
+                      {key}
+                    </span>
+                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.9)' }}>
+                      {desc}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </foreignObject>
+          )}
         </svg>
       </div>
 
-      {/* WCAG badges row */}
+      {/* Contrast badges row */}
       <div
         className="flex shrink-0 border-t"
         style={{ height: 34, borderColor: 'var(--p-border)' }}
@@ -243,18 +487,37 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
           const activeHex =
             activeStepIndex !== null ? ramp.steps[activeStepIndex]?.hex : null;
 
-          let result;
-          if (activeHex !== null && i !== activeStepIndex) {
-            result = getContrast(step.hex, activeHex);
-          } else if (activeStepIndex === null) {
-            const cw = getContrast(step.hex, '#ffffff');
-            const cb = getContrast(step.hex, '#000000');
-            result = cw.ratio > cb.ratio ? cw : cb;
-          } else {
-            result = null; // the selected step itself
-          }
+          let badge: { bg: string; text: string; label: string } | null = null;
+          let title: string | undefined;
 
-          const s = result ? (WCAG_STYLES[result.level] ?? WCAG_STYLES.fail) : null;
+          if (contrastMode === 'apca') {
+            if (activeHex !== null && i !== activeStepIndex) {
+              const lc = getApcaContrast(step.hex, activeHex);
+              badge = getApcaBadge(lc);
+              title = `APCA Lc: ${lc.toFixed(1)}`;
+            } else if (activeStepIndex === null) {
+              const lcWhite = getApcaContrast('#ffffff', step.hex);
+              const lcBlack = getApcaContrast('#000000', step.hex);
+              const bestLc = Math.abs(lcBlack) >= Math.abs(lcWhite) ? lcBlack : lcWhite;
+              badge = getApcaBadge(bestLc);
+              title = `APCA Lc: ${bestLc.toFixed(1)}`;
+            }
+          } else {
+            let result;
+            if (activeHex !== null && i !== activeStepIndex) {
+              result = getContrast(step.hex, activeHex);
+            } else if (activeStepIndex === null) {
+              const cw = getContrast(step.hex, '#ffffff');
+              const cb = getContrast(step.hex, '#000000');
+              result = cw.ratio > cb.ratio ? cw : cb;
+            } else {
+              result = null;
+            }
+            if (result) {
+              badge = WCAG_STYLES[result.level] ?? WCAG_STYLES.fail;
+              title = `${result.ratio.toFixed(2)}:1`;
+            }
+          }
 
           return (
             <div
@@ -262,12 +525,12 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
               className="flex-1 flex items-center justify-center border-r last:border-r-0"
               style={{ borderColor: 'var(--p-border)' }}
             >
-              {s ? (
+              {badge ? (
                 <span
-                  title={result ? `${result.ratio.toFixed(2)}:1` : undefined}
+                  title={title}
                   style={{
-                    backgroundColor: s.bg,
-                    color: s.text,
+                    backgroundColor: badge.bg,
+                    color: badge.text,
                     fontSize: 10,
                     fontWeight: 600,
                     padding: '2px 5px',
@@ -275,7 +538,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
                     cursor: 'default',
                   }}
                 >
-                  {s.label}
+                  {badge.label}
                 </span>
               ) : (
                 <span

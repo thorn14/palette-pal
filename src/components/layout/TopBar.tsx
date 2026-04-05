@@ -3,7 +3,7 @@ import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
 import type { StepNamingPreset } from '../../types/palette';
 
-type AppMode = 'edit' | 'preview' | 'visualize';
+type AppMode = 'edit' | 'preview' | 'visualize' | 'combos';
 type AppTheme = 'light' | 'dark';
 
 interface Props {
@@ -62,6 +62,8 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
   const updateStepNamingAll = usePaletteStore((s) => s.updateStepNamingAll);
   const applyLightnessPreset = usePaletteStore((s) => s.applyLightnessPreset);
   const scale = usePaletteStore(selectActiveScale);
+  const contrastMode = usePaletteStore((s) => s.contrastMode);
+  const setContrastMode = usePaletteStore((s) => s.setContrastMode);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -166,10 +168,46 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
         </div>
       )}
 
+      {/* WCAG / APCA toggle */}
+      <div
+        role="radiogroup"
+        aria-label="Contrast mode"
+        style={{
+          display: 'flex',
+          border: '1px solid var(--p-border)',
+          borderRadius: 6,
+          overflow: 'hidden',
+          flexShrink: 0,
+        }}
+      >
+        {(['wcag', 'apca'] as const).map((m, i) => (
+          <button
+            key={m}
+            role="radio"
+            aria-checked={contrastMode === m}
+            onClick={() => setContrastMode(m)}
+            style={{
+              padding: '4px 10px',
+              fontSize: 11,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              background: contrastMode === m ? 'var(--p-bg-inset)' : 'var(--p-bg)',
+              color: contrastMode === m ? 'var(--p-text)' : 'var(--p-text-secondary)',
+              border: 'none',
+              borderLeft: i > 0 ? '1px solid var(--p-border)' : 'none',
+              cursor: 'pointer',
+            }}
+          >
+            {m}
+          </button>
+        ))}
+      </div>
+
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Edit / Preview / Visualize toggle */}
+      {/* Edit / Preview / Visualize / Combos toggle */}
       <div
         style={{
           display: 'flex',
@@ -179,7 +217,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
           flexShrink: 0,
         }}
       >
-        {(['edit', 'preview', 'visualize'] as const).map((m, i) => (
+        {(['edit', 'preview', 'visualize', 'combos'] as const).map((m, i) => (
           <button
             key={m}
             onClick={() => onModeChange(m)}
@@ -202,25 +240,46 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
 
       {divider}
 
-      <button
-        onClick={onToggleSrgbPreview}
-        aria-pressed={srgbPreview}
-        aria-label={srgbPreview ? 'sRGB preview enabled' : 'sRGB preview disabled'}
-        title={srgbPreview ? 'Showing sRGB fallback colors — click to restore P3 wide-gamut rendering' : 'Preview how colors appear on sRGB displays (disables P3 wide-gamut rendering)'}
+      <div
+        role="radiogroup"
+        aria-label="Gamut preview"
         style={{
-          padding: '4px 10px',
-          fontSize: 12,
-          fontWeight: 500,
-          background: srgbPreview ? 'var(--p-bg-inset)' : 'var(--p-bg)',
+          display: 'flex',
           border: '1px solid var(--p-border)',
           borderRadius: 6,
-          color: srgbPreview ? 'var(--p-text)' : 'var(--p-text-secondary)',
-          cursor: 'pointer',
+          overflow: 'hidden',
           flexShrink: 0,
         }}
       >
-        sRGB
-      </button>
+        {([false, true] as const).map((isSrgb, i) => {
+          const active = srgbPreview === isSrgb;
+          return (
+            <button
+              key={isSrgb ? 'srgb' : 'p3'}
+              role="radio"
+              aria-checked={active}
+              onClick={() => { if (!active) onToggleSrgbPreview(); }}
+              style={{
+                padding: '4px 10px',
+                fontSize: 11,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                background: active ? 'var(--p-bg-inset)' : 'var(--p-bg)',
+                color: active ? 'var(--p-text)' : 'var(--p-text-secondary)',
+                border: 'none',
+                borderLeft: i > 0 ? '1px solid var(--p-border)' : 'none',
+                cursor: 'pointer',
+              }}
+              title={isSrgb
+                ? 'Preview how colors appear on sRGB displays'
+                : 'Show wide-gamut Display P3 colors on supported displays'}
+            >
+              {isSrgb ? 'sRGB' : 'P3'}
+            </button>
+          );
+        })}
+      </div>
 
       <button
         onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')}
