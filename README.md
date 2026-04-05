@@ -8,7 +8,7 @@ A color palette generator built with React, Vite, and TypeScript. Create, custom
 
 - Generate smooth OKLCH-based color ramps from a source hex color
 - Adjustable lightness, chroma, and hue curves per scale
-- WCAG 2.1 and APCA contrast badges and full NxN contrast matrix
+- WCAG 2.1 and APCA contrast badges, plus a WCAG full NxN contrast matrix
 - Accessible combinations view with filtering by level, polarity, and sort
 - Export to W3C DTCG-compatible JSON design tokens
 - Export WCAG and APCA contrast maps as compact matrix JSON
