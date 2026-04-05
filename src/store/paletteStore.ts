@@ -111,8 +111,8 @@ function resampleCurve(values: number[], nextCount: number): number[] {
   });
 }
 
-function insertNodeType(types: ('smooth' | 'corner')[] | undefined, index: number): ('smooth' | 'corner')[] {
-  if (!types) return [];
+function insertNodeType(types: ('smooth' | 'corner')[] | undefined, index: number): ('smooth' | 'corner')[] | undefined {
+  if (!types) return undefined;
   const next = types.slice();
   next.splice(index, 0, 'smooth');
   return next;
