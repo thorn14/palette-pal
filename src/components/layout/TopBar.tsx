@@ -68,6 +68,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
   const menuRef = useRef<HTMLDivElement | null>(null);
   const contrastButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
   const modeButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
+  const gamutButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
   const menuButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const saveLabel =
@@ -174,7 +175,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
       {/* Steps — applies to all scales */}
       {scale && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <span style={labelStyle}>Steps</span>
+          <label htmlFor="steps-preset" style={labelStyle}>Steps</label>
           <select
             id="steps-preset"
             name="steps-preset"
@@ -202,7 +203,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
       {/* Lightness — applies to active scale */}
       {scale && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <span style={labelStyle}>Lightness</span>
+          <label htmlFor="lightness-preset" style={labelStyle}>Lightness</label>
           <select
             id="lightness-preset"
             name="lightness-preset"
@@ -316,6 +317,19 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
       <div
         role="radiogroup"
         aria-label="Gamut preview"
+        onKeyDown={(event) => {
+          const gamutValues = [false, true] as const;
+          const currentIndex = gamutValues.indexOf(srgbPreview);
+          let nextIndex = currentIndex;
+          if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+            nextIndex = (currentIndex + 1) % gamutValues.length;
+          } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+            nextIndex = (currentIndex - 1 + gamutValues.length) % gamutValues.length;
+          } else { return; }
+          event.preventDefault();
+          if (gamutValues[nextIndex] !== srgbPreview) onToggleSrgbPreview();
+          gamutButtonsRef.current[nextIndex]?.focus();
+        }}
         style={{
           display: 'flex',
           border: '1px solid var(--p-border)',
@@ -332,7 +346,10 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
               role="radio"
               aria-checked={active}
               aria-label={isSrgb ? 'sRGB preview mode' : 'Display P3 preview mode'}
+              ref={(node) => { gamutButtonsRef.current[i] = node; }}
+              tabIndex={active ? 0 : -1}
               onClick={() => { if (!active) onToggleSrgbPreview(); }}
+              className="focus-visible-ring"
               style={{
                 padding: '4px 10px',
                 fontSize: 11,

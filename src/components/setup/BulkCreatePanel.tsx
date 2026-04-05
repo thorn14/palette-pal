@@ -195,10 +195,11 @@ export function BulkCreatePanel() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <p style={sectionLabel}>Hue spread</p>
               <div>
-                <p style={fieldLabel}>Scales</p>
+                <label htmlFor="bulk-scale-count" style={fieldLabel}>Scales</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <button style={stepBtn} onClick={() => adjustCount(-1)} className="focus-visible-ring" aria-label="Decrease scale count">−</button>
                   <input
+                    id="bulk-scale-count"
                     name="scale-count"
                     type="number"
                     min={1}
@@ -207,15 +208,15 @@ export function BulkCreatePanel() {
                     onChange={(e) => setCount(Math.max(1, Math.min(24, parseInt(e.target.value) || 1)))}
                     style={{ ...inputBase, width: 52, textAlign: 'center', flex: 'none' }}
                     className="focus-visible-ring"
-                    aria-label="Number of scales"
                   />
                   <button style={stepBtn} onClick={() => adjustCount(1)} className="focus-visible-ring" aria-label="Increase scale count">+</button>
                 </div>
               </div>
               <div>
-                <p style={fieldLabel}>Degrees between</p>
+                <label htmlFor="bulk-degrees-between" style={fieldLabel}>Degrees between</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
+                    id="bulk-degrees-between"
                     name="degrees-between"
                     type="number"
                     min={1}
@@ -225,7 +226,6 @@ export function BulkCreatePanel() {
                     onChange={(e) => handleDegreesChange(e.target.value)}
                     style={{ ...inputBase, width: 72, fontFamily: 'monospace', flex: 'none' }}
                     className="focus-visible-ring"
-                    aria-label="Degrees between scales"
                   />
                   <span style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>°</span>
                 </div>
@@ -236,8 +236,9 @@ export function BulkCreatePanel() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <p style={sectionLabel}>Steps</p>
               <div>
-                <p style={fieldLabel}>Naming</p>
+                <label htmlFor="bulk-step-naming" style={fieldLabel}>Naming</label>
                 <select
+                  id="bulk-step-naming"
                   name="bulk-step-naming"
                   value={namingPreset}
                   onChange={(e) => setNamingPreset(e.target.value as StepNamingPreset)}
@@ -249,8 +250,9 @@ export function BulkCreatePanel() {
                 </select>
               </div>
               <div>
-                <p style={fieldLabel}>Lightness curve</p>
+                <label htmlFor="bulk-lightness-preset" style={fieldLabel}>Lightness curve</label>
                 <select
+                  id="bulk-lightness-preset"
                   name="bulk-lightness-preset"
                   value={lightnessPreset}
                   onChange={(e) => setLightnessPreset(e.target.value as LightnessPreset)}

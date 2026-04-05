@@ -27,6 +27,7 @@ export function Swatch({ step, isActive, onClick }: Props) {
     return (
       <button
         onClick={onClick}
+        aria-label={`${step.name}: ${step.hex}`}
         className={`motion-safe-swatch focus-visible-ring flex flex-col items-start justify-end p-2 rounded cursor-pointer
           ${isActive ? 'ring-2 ring-white ring-offset-2 ring-offset-neutral-900 scale-105' : 'motion-safe hover:scale-[1.03]'}
         `}
@@ -54,6 +55,7 @@ export function Swatch({ step, isActive, onClick }: Props) {
   return (
     <button
       onClick={onClick}
+      aria-label={`${step.name}: ${step.hex}`}
       className={`motion-safe-swatch focus-visible-ring flex flex-col items-start justify-end p-2 rounded cursor-pointer
         ${isActive ? 'ring-2 ring-white ring-offset-2 ring-offset-neutral-900 scale-105' : 'motion-safe hover:scale-[1.03]'}
       `}

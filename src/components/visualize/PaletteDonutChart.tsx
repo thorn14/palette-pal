@@ -132,6 +132,8 @@ export function PaletteDonutChart() {
                 return (
                   <path
                     key={`${ramp.scaleId}-${step.name}`}
+                    role="button"
+                    aria-label={`${ramp.scaleName} ${step.name}: ${step.hex}`}
                     d={path}
                     fill={step.hex}
                     stroke="var(--p-bg)"
@@ -140,6 +142,12 @@ export function PaletteDonutChart() {
                     onFocus={() => setHovered({ scaleName: ramp.scaleName, stepName: step.name, hex: step.hex })}
                     onMouseLeave={() => setHovered(null)}
                     onBlur={() => setHovered(null)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setHovered({ scaleName: ramp.scaleName, stepName: step.name, hex: step.hex });
+                      }
+                    }}
                     tabIndex={0}
                   >
                     <title>{`${ramp.scaleName} ${step.name}: ${step.hex}`}</title>
