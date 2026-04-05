@@ -3,7 +3,7 @@ import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
 import type { StepNamingPreset } from '../../types/palette';
 
-type AppMode = 'edit' | 'preview' | 'visualize' | 'combos';
+type AppMode = 'edit' | 'preview' | 'combos';
 type AppTheme = 'light' | 'dark';
 
 interface Props {
@@ -277,7 +277,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
       <div
         role="radiogroup"
         aria-label="App mode"
-        onKeyDown={(event) => handleRadioGroupKeyDown(event, ['edit', 'preview', 'visualize', 'combos'] as const, mode, onModeChange, modeButtonsRef)}
+        onKeyDown={(event) => handleRadioGroupKeyDown(event, ['edit', 'preview', 'combos'] as const, mode, onModeChange, modeButtonsRef)}
         style={{
           display: 'flex',
           border: '1px solid var(--p-border)',
@@ -286,7 +286,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
           flexShrink: 0,
         }}
       >
-        {(['edit', 'preview', 'visualize', 'combos'] as const).map((m, i) => (
+        {(['edit', 'preview', 'combos'] as const).map((m, i) => (
           <button
             key={m}
             role="radio"
