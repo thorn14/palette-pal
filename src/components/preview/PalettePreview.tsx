@@ -32,21 +32,27 @@ function ColorSwatchTooltip({
   return (
     <div
       ref={wrapperRef}
+      role="cell"
       style={{ position: 'relative', height: 48 }}
       onMouseEnter={() => setVisible(true)}
       onMouseLeave={() => setVisible(false)}
     >
-      <div
+      <button
+        type="button"
         style={{
           backgroundColor: (!srgbPreview && supportsP3 && step.displayP3) || step.hex,
           height: 48,
           cursor: onEditScale ? 'pointer' : 'default',
           borderRight: '1px solid var(--p-border)',
-          outline: visible ? '2px solid var(--p-accent)' : 'none',
-          outlineOffset: visible ? 2 : 0,
           zIndex: visible ? 10 : 'auto',
           position: visible ? 'relative' : undefined,
+          width: '100%',
         }}
+        className="focus-visible-ring"
+        aria-label={`${scale.name} ${step.name} ${step.hex}`}
+        onFocus={() => setVisible(true)}
+        onBlur={() => setVisible(false)}
+        onClick={() => onEditScale?.(scale.id)}
       />
       {visible && (
         <div
@@ -97,6 +103,7 @@ function ColorSwatchTooltip({
                 borderRadius: 6,
                 cursor: 'pointer',
               }}
+              className="focus-visible-ring"
             >
               Edit scale →
             </button>
@@ -138,6 +145,7 @@ function HeaderRow({ scale }: { scale: ColorScale }) {
       {ramp.steps.map((step) => (
         <div
           key={step.name}
+          role="columnheader"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -186,39 +194,45 @@ export function PalettePreview({ onEditScale }: PalettePreviewProps) {
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
       {/* Header */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: gridColumns,
-          height: 28,
-          borderBottom: '1px solid var(--p-border)',
-          background: 'var(--p-bg-subtle)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 3,
-        }}
-      >
+      <div role="table" aria-label="Palette preview">
         <div
+          role="rowgroup"
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            paddingInline: 12,
-            fontSize: 11,
-            fontWeight: 600,
-            fontFamily: 'monospace',
-            color: 'var(--p-text-secondary)',
+            display: 'grid',
+            gridTemplateColumns: gridColumns,
+            height: 28,
+            borderBottom: '1px solid var(--p-border)',
+            background: 'var(--p-bg-subtle)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 3,
           }}
         >
-          Name
+          <div role="row" style={{ display: 'contents' }}>
+            <div
+              role="columnheader"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                paddingInline: 12,
+                fontSize: 11,
+                fontWeight: 600,
+                fontFamily: 'monospace',
+                color: 'var(--p-text-secondary)',
+              }}
+            >
+              Name
+            </div>
+            <HeaderRow scale={firstScale} />
+          </div>
         </div>
-        <HeaderRow scale={firstScale} />
-      </div>
 
-      {/* Rows */}
-      <div>
+        {/* Rows */}
+        <div role="rowgroup">
         {scales.map((scale) => (
           <div
             key={scale.id}
+            role="row"
             style={{
               display: 'grid',
               gridTemplateColumns: gridColumns,
@@ -226,6 +240,7 @@ export function PalettePreview({ onEditScale }: PalettePreviewProps) {
             }}
           >
             <div
+              role="rowheader"
               style={{
                 height: 48,
                 display: 'flex',
@@ -245,6 +260,7 @@ export function PalettePreview({ onEditScale }: PalettePreviewProps) {
             <PreviewRow scale={scale} colCount={colCount} onEditScale={onEditScale} />
           </div>
         ))}
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import type { ColorScale } from '../../types/palette';
 import { resolveStepNames } from '../../constants/stepPresets';
 import { usePaletteStore } from '../../store/paletteStore';
@@ -32,6 +32,7 @@ function parseLightnessList(text: string): number[] {
 }
 
 export function StepListModal({ scale, mode, applyToAll = false, onClose }: Props) {
+  const textareaId = useId();
   const setStepsAndLightness = usePaletteStore((s) => s.setStepsAndLightness);
   const setLightnessAll = usePaletteStore((s) => s.setLightnessAll);
   const setStepsAll = usePaletteStore((s) => s.setStepsAll);
@@ -52,6 +53,14 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
   const [error, setError] = useState<string | null>(null);
 
   const [applyToAllLightness, setApplyToAllLightness] = useState(true);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   function handleApply() {
     if (mode === 'names') {
@@ -102,10 +111,14 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
         justifyContent: 'center',
         zIndex: 60,
         padding: 16,
+        overscrollBehavior: 'contain',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="step-list-modal-title"
         style={{
           background: 'var(--p-bg)',
           border: '1px solid var(--p-border)',
@@ -127,11 +140,13 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
             borderBottom: '1px solid var(--p-border)',
           }}
         >
-          <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--p-text)' }}>
+          <h2 id="step-list-modal-title" style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--p-text)' }}>
             {title}
           </h2>
           <button
             onClick={onClose}
+            aria-label={`Close ${title.toLowerCase()}`}
+            className="focus-visible-ring"
             style={{
               width: 28,
               height: 28,
@@ -153,11 +168,17 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
 
         {/* Body */}
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <label htmlFor={textareaId} style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
+          {mode === 'names' ? 'Step names' : 'Lightness values'}
+        </label>
         <textarea
+          id={textareaId}
+          name={mode === 'names' ? 'step-names' : 'lightness-values'}
           value={value}
           onChange={(e) => { setValue(e.target.value); setError(null); }}
           placeholder={placeholder}
           rows={6}
+          className="focus-visible-ring"
           style={{
             width: '100%',
             padding: 10,
@@ -202,6 +223,7 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
         >
           <button
             onClick={onClose}
+            className="focus-visible-ring"
             style={{
               padding: '6px 14px',
               fontSize: 13,
@@ -216,6 +238,7 @@ export function StepListModal({ scale, mode, applyToAll = false, onClose }: Prop
           </button>
           <button
             onClick={handleApply}
+            className="focus-visible-ring"
             style={{
               padding: '6px 14px',
               fontSize: 13,

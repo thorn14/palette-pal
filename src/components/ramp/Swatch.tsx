@@ -27,8 +27,8 @@ export function Swatch({ step, isActive, onClick }: Props) {
     return (
       <button
         onClick={onClick}
-        className={`flex flex-col items-start justify-end p-2 rounded transition-all cursor-pointer
-          ${isActive ? 'ring-2 ring-white ring-offset-2 ring-offset-neutral-900 scale-105' : 'hover:scale-[1.03]'}
+        className={`motion-safe-swatch focus-visible-ring flex flex-col items-start justify-end p-2 rounded cursor-pointer
+          ${isActive ? 'ring-2 ring-white ring-offset-2 ring-offset-neutral-900 scale-105' : 'motion-safe hover:scale-[1.03]'}
         `}
         style={{ backgroundColor: bgColor, minHeight: '80px', minWidth: '64px' }}
         title={`${step.name}: ${step.hex}`}
@@ -54,8 +54,8 @@ export function Swatch({ step, isActive, onClick }: Props) {
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-start justify-end p-2 rounded transition-all cursor-pointer
-        ${isActive ? 'ring-2 ring-white ring-offset-2 ring-offset-neutral-900 scale-105' : 'hover:scale-[1.03]'}
+      className={`motion-safe-swatch focus-visible-ring flex flex-col items-start justify-end p-2 rounded cursor-pointer
+        ${isActive ? 'ring-2 ring-white ring-offset-2 ring-offset-neutral-900 scale-105' : 'motion-safe hover:scale-[1.03]'}
       `}
       style={{ backgroundColor: bgColor, minHeight: '80px', minWidth: '64px' }}
       title={`${step.name}: ${step.hex}`}

@@ -113,7 +113,7 @@ export function PaletteDonutChart() {
             padding: 12,
           }}
         >
-          <svg viewBox={`0 0 ${size} ${size}`} style={{ width: '100%', maxWidth: 640, aspectRatio: '1 / 1' }}>
+          <svg viewBox={`0 0 ${size} ${size}`} style={{ width: '100%', maxWidth: 640, aspectRatio: '1 / 1' }} role="img" aria-label="Palette donut chart">
             {ramps.map((ramp, ringIndex) => {
               const ringOuter = outerRadius - ringIndex * (ringWidth + ringGap);
               const ringInner = ringOuter - ringWidth;
@@ -139,6 +139,8 @@ export function PaletteDonutChart() {
                     onMouseEnter={() => setHovered({ scaleName: ramp.scaleName, stepName: step.name, hex: step.hex })}
                     onFocus={() => setHovered({ scaleName: ramp.scaleName, stepName: step.name, hex: step.hex })}
                     onMouseLeave={() => setHovered(null)}
+                    onBlur={() => setHovered(null)}
+                    tabIndex={0}
                   >
                     <title>{`${ramp.scaleName} ${step.name}: ${step.hex}`}</title>
                   </path>

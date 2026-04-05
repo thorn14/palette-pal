@@ -18,7 +18,7 @@ export function CurvePreview({ values, min, max, width = 120, height = 40, color
   }).join(' ');
 
   return (
-    <svg width={width} height={height} className="overflow-visible">
+    <svg width={width} height={height} className="overflow-visible" role="img" aria-label="Curve preview">
       <polyline
         points={points}
         fill="none"

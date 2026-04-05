@@ -101,7 +101,7 @@ export default function App() {
         onToggleSrgbPreview={toggleSrgbPreview}
       />
 
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+      <main id="main-content" style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {mode === 'edit' && scales.length > 0 && <Sidebar />}
 
         {mode === 'edit' && (scale ? <EditPanel scale={scale} /> : <BulkCreatePanel />)}
@@ -115,7 +115,7 @@ export default function App() {
         )}
         {mode === 'visualize' && <PaletteColorWheel />}
         {mode === 'combos' && <AccessibleCombos />}
-      </div>
+      </main>
 
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
