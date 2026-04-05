@@ -349,7 +349,24 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     updateCurveValues: (id, channel, values) => set((state) => {
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
-      scale.curves[channel].values = values.slice();
+      const curve = scale.curves[channel];
+      const targetLength = scale.stepCount;
+      const nextValues = values.slice(0, targetLength);
+      const fallbackValue = nextValues[nextValues.length - 1] ?? curve.values[curve.values.length - 1] ?? 0;
+
+      while (nextValues.length < targetLength) {
+        nextValues.push(fallbackValue);
+      }
+
+      curve.values = nextValues;
+
+      if (curve.nodeTypes) {
+        const nextNodeTypes = curve.nodeTypes.slice(0, targetLength);
+        while (nextNodeTypes.length < targetLength) {
+          nextNodeTypes.push('smooth');
+        }
+        curve.nodeTypes = nextNodeTypes;
+      }
     }),
 
     updateCurveNodeType: (id, channel, stepIndex, type) => set((state) => {
