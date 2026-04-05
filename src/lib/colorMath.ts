@@ -144,7 +144,7 @@ export function buildChromaCurve(chromaPeak: number, stepCount: number): number[
 }
 
 // Nearest RGB primary hue (R=0°, G=120°, B=240°)
-function nearestPrimary(baseHue: number): number {
+export function nearestPrimary(baseHue: number): number {
   return [0, 120, 240].reduce((best, p) =>
     Math.abs(circularDist(baseHue, p)) < Math.abs(circularDist(baseHue, best)) ? p : best
   );
