@@ -204,6 +204,8 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
 
       <button
         onClick={onToggleSrgbPreview}
+        aria-pressed={srgbPreview}
+        aria-label={srgbPreview ? 'sRGB preview enabled' : 'sRGB preview disabled'}
         title={srgbPreview ? 'Showing sRGB fallback colors — click to restore P3 wide-gamut rendering' : 'Preview how colors appear on sRGB displays (disables P3 wide-gamut rendering)'}
         style={{
           padding: '4px 10px',
