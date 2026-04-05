@@ -331,6 +331,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
               key={isSrgb ? 'srgb' : 'p3'}
               role="radio"
               aria-checked={active}
+              aria-label={isSrgb ? 'sRGB preview mode' : 'Display P3 preview mode'}
               onClick={() => { if (!active) onToggleSrgbPreview(); }}
               style={{
                 padding: '4px 10px',

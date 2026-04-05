@@ -4,6 +4,8 @@ import { usePaletteStore } from '../../store/paletteStore';
 import { getContrast, sourceWithChromaToHex, autoHueShiftBase, maxP3Chroma, maxSrgbChroma } from '../../lib/colorMath';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 
+const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
+
 interface Props {
   scale: ColorScale;
   activeStep: GeneratedStep | null;
@@ -359,7 +361,7 @@ export function RightPanel({ scale, activeStep }: Props) {
               />
               {activeStep.gamut === 'p3' && activeStep.displayP3 && (
                 <div
-                  style={{ width: 32, height: 13, borderRadius: 3, backgroundColor: activeStep.displayP3, border: '1px solid var(--p-border)' }}
+                  style={{ width: 32, height: 13, borderRadius: 3, backgroundColor: supportsP3 ? activeStep.displayP3 : activeStep.hex, border: '1px solid var(--p-border)' }}
                   title="Display P3 — wide-gamut rendering on supported displays"
                 />
               )}
@@ -373,7 +375,7 @@ export function RightPanel({ scale, activeStep }: Props) {
                 <button
                   style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--p-text)', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
                   title="Click to copy"
-                  onClick={() => navigator.clipboard?.writeText(activeStep.hex).catch(() => {})}
+                  onClick={() => navigator.clipboard?.writeText(activeStep.hex)?.catch(() => {})}
                 >
                   {activeStep.hex}
                 </button>
@@ -387,7 +389,7 @@ export function RightPanel({ scale, activeStep }: Props) {
                   <button
                     style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--p-text)', cursor: 'pointer', textAlign: 'right', wordBreak: 'break-all', background: 'none', border: 'none', padding: 0 }}
                     title="Click to copy"
-                    onClick={() => navigator.clipboard?.writeText(activeStep.displayP3!).catch(() => {})}
+                    onClick={() => navigator.clipboard?.writeText(activeStep.displayP3!)?.catch(() => {})}
                   >
                     {activeStep.displayP3}
                   </button>

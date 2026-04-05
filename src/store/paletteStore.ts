@@ -233,7 +233,6 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
   immer((set) => ({
     ...loadInitialState(),
 
-    srgbPreview: false,
     toggleSrgbPreview: () => set((state) => { state.srgbPreview = !state.srgbPreview; }),
 
     addScale: (sourceHex, name) => set((state) => {
