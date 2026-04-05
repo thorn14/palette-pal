@@ -1,21 +1,25 @@
 import { useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { GeneratedRamp } from '../../types/palette';
-import { useContrastMatrix } from '../../hooks/useContrastMatrix';
+import { useContrastMatrix, useApcaContrastMatrix } from '../../hooks/useContrastMatrix';
 import { ContrastBadge } from './ContrastBadge';
+import { ApcaBadge } from './ApcaBadge';
+import { usePaletteStore } from '../../store/paletteStore';
 
 interface Props {
   ramp: GeneratedRamp;
 }
 
 export function ContrastMatrix({ ramp }: Props) {
-  const matrix = useContrastMatrix(ramp);
+  const contrastMode = usePaletteStore((s) => s.contrastMode);
+  const wcagMatrix = useContrastMatrix(ramp);
+  const apcaMatrix = useApcaContrastMatrix(ramp);
   const stepNames = ramp.steps.map((s) => s.name);
   const colCount = stepNames.length + 1; // +1 for row header
   const parentRef = useRef<HTMLDivElement>(null);
 
   const rowVirtualizer = useVirtualizer({
-    count: matrix.length,
+    count: wcagMatrix.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 32,
     overscan: 5,
@@ -49,7 +53,6 @@ export function ContrastMatrix({ ramp }: Props) {
         >
           {rowVirtualizer.getVirtualItems().map((vRow) => {
             const ri = vRow.index;
-            const row = matrix[ri];
             return (
               <div
                 key={ri}
@@ -66,15 +69,17 @@ export function ContrastMatrix({ ramp }: Props) {
                 }}
               >
                 <div role="rowheader" className="text-neutral-400 font-medium pr-2 text-right">{stepNames[ri]}</div>
-                {row.map((cell, ci) => (
-                  <div key={ci} role="gridcell" className="p-0.5 text-center">
-                    {ri === ci ? (
-                      <span className="text-neutral-700">—</span>
-                    ) : (
-                      <ContrastBadge level={cell.result.level} ratio={cell.result.ratio} showRatio />
-                    )}
-                  </div>
-                ))}
+                {contrastMode === 'apca'
+                  ? apcaMatrix[ri].map((cell, ci) => (
+                      <div key={ci} role="gridcell" className="p-0.5 text-center">
+                        {ri === ci ? <span className="text-neutral-700">—</span> : <ApcaBadge lc={cell.lc} showValue />}
+                      </div>
+                    ))
+                  : wcagMatrix[ri].map((cell, ci) => (
+                      <div key={ci} role="gridcell" className="p-0.5 text-center">
+                        {ri === ci ? <span className="text-neutral-700">—</span> : <ContrastBadge level={cell.result.level} ratio={cell.result.ratio} showRatio />}
+                      </div>
+                    ))}
               </div>
             );
           })}

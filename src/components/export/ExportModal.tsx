@@ -89,10 +89,29 @@ export function ExportModal({ onClose }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('tokens');
   const [copied, setCopied] = useState(false);
 
+  const exportCacheRef = useRef<{
+    ramps: typeof ramps | null;
+    tokens?: string;
+    wcag?: string;
+    apca?: string;
+  }>({ ramps: null });
+
+  if (exportCacheRef.current.ramps !== ramps) {
+    exportCacheRef.current = { ramps };
+  }
+
   const json = useMemo(() => {
-    if (activeTab === 'tokens') return exportToJSON(ramps);
-    if (activeTab === 'contrast-wcag') return exportWcagContrastMapJSON(ramps);
-    return exportApcaContrastMapJSON(ramps);
+    const cache = exportCacheRef.current;
+    if (activeTab === 'tokens') {
+      if (cache.tokens === undefined) cache.tokens = exportToJSON(ramps);
+      return cache.tokens;
+    }
+    if (activeTab === 'contrast-wcag') {
+      if (cache.wcag === undefined) cache.wcag = exportWcagContrastMapJSON(ramps);
+      return cache.wcag;
+    }
+    if (cache.apca === undefined) cache.apca = exportApcaContrastMapJSON(ramps);
+    return cache.apca;
   }, [ramps, activeTab]);
   const downloadName =
     activeTab === 'tokens' ? 'design-tokens.json'

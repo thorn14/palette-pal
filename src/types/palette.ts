@@ -63,14 +63,6 @@ export type ContrastMode = 'wcag' | 'apca';
 export interface ContrastMapColorRef { ramp: string; step: string; hex: string }
 export interface WcagMapEntry { fg: ContrastMapColorRef; bg: ContrastMapColorRef; ratio: number }
 export interface ApcaMapEntry { fg: ContrastMapColorRef; bg: ContrastMapColorRef; lc: number }
-export interface ContrastMapOutput {
-  version: string;
-  generated: string;
-  totalRamps: number;
-  totalSteps: number;
-  wcag: { 'aa-large': WcagMapEntry[]; aa: WcagMapEntry[]; aaa: WcagMapEntry[] };
-  apca: { lc45: ApcaMapEntry[]; lc60: ApcaMapEntry[]; lc75: ApcaMapEntry[] };
-}
 
 export interface PaletteState {
   scales: ColorScale[];
