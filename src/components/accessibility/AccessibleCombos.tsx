@@ -25,7 +25,6 @@ const COLS = 7;
 const ROW_HEIGHT = 120;
 const ROW_GAP = 8;
 
-/** Rough perceived luminance from hex for polarity filtering */
 function hexLuminance(hex: string): number {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
@@ -37,10 +36,19 @@ function matchesPolarity(fg: ContrastMapColorRef, bg: ContrastMapColorRef, polar
   if (polarity === 'all') return true;
   const fgL = hexLuminance(fg.hex);
   const bgL = hexLuminance(bg.hex);
-  // "light" = light background (dark text on light bg)
-  // "dark" = dark background (light text on dark bg)
   if (polarity === 'light') return bgL > fgL;
   return bgL < fgL;
+}
+
+function matchesSearch(
+  fg: ContrastMapColorRef,
+  bg: ContrastMapColorRef,
+  query: string,
+): boolean {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  return fg.ramp.toLowerCase().includes(q) || fg.step.toLowerCase().includes(q) || fg.hex.toLowerCase().includes(q)
+    || bg.ramp.toLowerCase().includes(q) || bg.step.toLowerCase().includes(q) || bg.hex.toLowerCase().includes(q);
 }
 
 function WcagComboCard({ entry }: { entry: WcagMapEntry }) {
@@ -133,7 +141,19 @@ function ApcaComboCard({ entry }: { entry: ApcaMapEntry }) {
   );
 }
 
+const selectStyle: React.CSSProperties = {
+  padding: '4px 8px',
+  fontSize: 12,
+  background: 'var(--p-bg-subtle)',
+  border: '1px solid var(--p-border)',
+  borderRadius: 6,
+  color: 'var(--p-text)',
+  cursor: 'pointer',
+};
+
 function FilterBar({
+  search,
+  setSearch,
   polarity,
   setPolarity,
   wcagLevel,
@@ -144,6 +164,8 @@ function FilterBar({
   setSortAsc,
   contrastMode,
 }: {
+  search: string;
+  setSearch: (s: string) => void;
   polarity: Polarity;
   setPolarity: (p: Polarity) => void;
   wcagLevel: WcagLevel;
@@ -154,47 +176,75 @@ function FilterBar({
   setSortAsc: (v: boolean) => void;
   contrastMode: ContrastMode;
 }) {
-  const btnStyle = (active: boolean) => ({
-    padding: '4px 10px',
-    fontSize: 11,
-    fontWeight: active ? 600 : 400,
-    border: `1px solid ${active ? 'var(--p-accent)' : 'var(--p-border)'}`,
-    borderRadius: 6,
-    background: active ? 'var(--p-accent)' : 'var(--p-bg-subtle)',
-    color: active ? '#fff' : 'var(--p-text-secondary)',
-    cursor: 'pointer',
-  });
-
   return (
-    <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+    <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search by name or hex…"
+        aria-label="Search color combinations"
+        spellCheck={false}
+        className="focus-visible-ring"
+        style={{ ...selectStyle, width: 180, cursor: 'text' }}
+      />
+
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginRight: 4 }}>Background:</span>
-        {(['light', 'dark', 'all'] as Polarity[]).map((p) => (
-            <button key={p} onClick={() => setPolarity(p)} style={btnStyle(polarity === p)}>
-              {p === 'light' ? 'Light' : p === 'dark' ? 'Dark' : 'All'}
-            </button>
-          ))}
-      </div>
-      
-      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginRight: 4 }}>Level:</span>
-        {contrastMode === 'wcag'
-          ? WCAG_LEVELS.map(({ key, label }) => (
-              <button key={key} onClick={() => setWcagLevel(key)} style={btnStyle(wcagLevel === key)} className="focus-visible-ring">
-                {label}
-              </button>
-            ))
-          : APCA_LEVELS.map(({ key, label }) => (
-              <button key={key} onClick={() => setApcaLevel(key)} style={btnStyle(apcaLevel === key)} className="focus-visible-ring">
-                {label}
-              </button>
-            ))}
+        <label htmlFor="combos-polarity" style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>Background:</label>
+        <select
+          id="combos-polarity"
+          value={polarity}
+          onChange={(e) => setPolarity(e.target.value as Polarity)}
+          style={selectStyle}
+          className="focus-visible-ring"
+        >
+          <option value="all">All</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
       </div>
 
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginRight: 4 }}>Sort:</span>
-        <button onClick={() => setSortAsc(false)} style={btnStyle(!sortAsc)} className="focus-visible-ring">High → Low</button>
-        <button onClick={() => setSortAsc(true)} style={btnStyle(sortAsc)} className="focus-visible-ring">Low → High</button>
+        <label htmlFor="combos-level" style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>Level:</label>
+        {contrastMode === 'wcag' ? (
+          <select
+            id="combos-level"
+            value={wcagLevel}
+            onChange={(e) => setWcagLevel(e.target.value as WcagLevel)}
+            style={selectStyle}
+            className="focus-visible-ring"
+          >
+            {WCAG_LEVELS.map(({ key, label }) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+        ) : (
+          <select
+            id="combos-level"
+            value={apcaLevel}
+            onChange={(e) => setApcaLevel(e.target.value as ApcaLevel)}
+            style={selectStyle}
+            className="focus-visible-ring"
+          >
+            {APCA_LEVELS.map(({ key, label }) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <label htmlFor="combos-sort" style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>Sort:</label>
+        <select
+          id="combos-sort"
+          value={sortAsc ? 'asc' : 'desc'}
+          onChange={(e) => setSortAsc(e.target.value === 'asc')}
+          style={selectStyle}
+          className="focus-visible-ring"
+        >
+          <option value="desc">High → Low</option>
+          <option value="asc">Low → High</option>
+        </select>
       </div>
     </div>
   );
@@ -204,7 +254,8 @@ export function AccessibleCombos() {
   const scales = usePaletteStore((s) => s.scales);
   const contrastMode = usePaletteStore((s) => s.contrastMode);
 
-  const [polarity, setPolarity] = useState<Polarity>('dark');
+  const [search, setSearch] = useState('');
+  const [polarity, setPolarity] = useState<Polarity>('all');
   const [wcagLevel, setWcagLevel] = useState<WcagLevel>('aa');
   const [apcaLevel, setApcaLevel] = useState<ApcaLevel>('lc60');
   const [sortAsc, setSortAsc] = useState(false);
@@ -235,6 +286,7 @@ export function AccessibleCombos() {
         for (const bg of steps) {
           if (fg.hex === bg.hex) continue;
           if (!matchesPolarity(fg, bg, polarity)) continue;
+          if (!matchesSearch(fg, bg, search)) continue;
 
           if (contrastMode === 'wcag') {
             const { ratio } = getContrast(fg.hex, bg.hex);
@@ -268,7 +320,7 @@ export function AccessibleCombos() {
     }
 
     return results;
-  }, [stepsByRamp, contrastMode, polarity, wcagLevel, apcaLevel, sortAsc]);
+  }, [stepsByRamp, contrastMode, search, polarity, wcagLevel, apcaLevel, sortAsc]);
 
   const activeLevel = contrastMode === 'wcag'
     ? WCAG_LEVELS.find((l) => l.key === wcagLevel)!
@@ -304,6 +356,8 @@ export function AccessibleCombos() {
         </div>
 
         <FilterBar
+          search={search}
+          setSearch={setSearch}
           polarity={polarity}
           setPolarity={setPolarity}
           wcagLevel={wcagLevel}

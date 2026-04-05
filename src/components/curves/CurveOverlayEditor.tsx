@@ -231,6 +231,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
           <button
             key={step.name}
             onClick={() => onStepClick(i)}
+            aria-label={`${step.name}: ${step.hex}`}
             className="flex-1 relative border-r last:border-r-0 cursor-pointer"
             style={{
               backgroundColor: (!srgbPreview && supportsP3 && step.displayP3) || step.hex,

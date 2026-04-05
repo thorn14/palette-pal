@@ -99,6 +99,17 @@ input[type="range"][style*="writing-mode"] {
   }
 }
 
+.copyable-value {
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+}
+
+.copyable-value:hover,
+.copyable-value:focus-visible {
+  text-decoration-color: var(--p-text-secondary);
+}
+
 .motion-safe-swatch {
   transition-property: transform, box-shadow;
   transition-duration: 150ms;

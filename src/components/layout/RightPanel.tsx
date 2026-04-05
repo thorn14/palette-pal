@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useId } from 'react';
 import type { ColorScale, GeneratedStep } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
-import { getContrast, sourceWithChromaToHex, autoHueShiftBase, maxP3Chroma, maxSrgbChroma } from '../../lib/colorMath';
+import { getContrast, getApcaContrast, sourceWithChromaToHex, autoHueShiftBase, nearestPrimary, maxP3Chroma, maxSrgbChroma } from '../../lib/colorMath';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
@@ -58,6 +58,7 @@ export function RightPanel({ scale, activeStep }: Props) {
   const setChromaCurveValues = usePaletteStore((s) => s.setChromaCurveValues);
   const updateCurveSmoothing = usePaletteStore((s) => s.updateCurveSmoothing);
   const removeScale = usePaletteStore((s) => s.removeScale);
+  const contrastMode = usePaletteStore((s) => s.contrastMode);
   const ramp = useGeneratedRamp(scale);
 
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -273,56 +274,61 @@ export function RightPanel({ scale, activeStep }: Props) {
       {/* Hue shift */}
       <div style={sectionStyle}>
         <SectionLabel>Hue shift</SectionLabel>
-        <p style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginBottom: 10, lineHeight: 1.4 }}>
-          Scales with proximity to nearest RGB primary — closer hues shift less.
-        </p>
-        {(
-          [
-            { key: 'lightEndAdjust' as const, label: 'Light end', dotColor: 'var(--p-text-secondary)' },
-            { key: 'darkEndAdjust'  as const, label: 'Dark end',  dotColor: 'var(--p-text-tertiary)' },
-          ] as const
-        ).map(({ key, label, dotColor }) => {
-          const adjust = scale.hueShift[key];
-          const autoBase = Math.round(autoHueShiftBase(scale.sourceOklch.h));
-          const effectiveDeg = Math.round(autoBase + adjust);
-          return (
-            <div key={key} style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                <label htmlFor={key === 'lightEndAdjust' ? lightEndAdjustId : darkEndAdjustId} style={{ fontSize: 12, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: dotColor, display: 'inline-block' }} />
-                  {label}
-                </label>
-                <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-tertiary)' }}>
-                  auto {autoBase}° → {effectiveDeg}°
-                </span>
+        {(() => {
+          const lightStep = ramp.steps[0];
+          const darkStep = ramp.steps[ramp.steps.length - 1];
+          const primaryNameFor = (p: number) => p === 0 ? 'R' : p === 120 ? 'G' : 'B';
+          const ends = [
+            { key: 'lightEndAdjust' as const, label: 'Light', dotColor: 'var(--p-text-secondary)', stepHue: lightStep?.oklch.h ?? scale.sourceOklch.h },
+            { key: 'darkEndAdjust'  as const, label: 'Dark',  dotColor: 'var(--p-text-tertiary)',  stepHue: darkStep?.oklch.h ?? scale.sourceOklch.h },
+          ] as const;
+          return ends.map(({ key, label, dotColor, stepHue }) => {
+            const adjust = scale.hueShift[key];
+            const primary = nearestPrimary(stepHue);
+            const pName = primaryNameFor(primary);
+            const dist = Math.round(Math.abs(((stepHue - primary + 180) % 360) - 180));
+            const autoBase = Math.round(autoHueShiftBase(stepHue));
+            const effectiveDeg = Math.round(autoBase + adjust);
+            return (
+              <div key={key} style={{ marginBottom: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <label htmlFor={key === 'lightEndAdjust' ? lightEndAdjustId : darkEndAdjustId} style={{ fontSize: 11, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 4, width: 48, flexShrink: 0 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: dotColor, display: 'inline-block', flexShrink: 0 }} />
+                    {label}
+                  </label>
+                  <input
+                    id={key === 'lightEndAdjust' ? lightEndAdjustId : darkEndAdjustId}
+                    name={key}
+                    type="number"
+                    min={-90}
+                    max={90}
+                    value={adjust}
+                    onChange={(e) => {
+                      const v = Math.max(-90, Math.min(90, parseInt(e.target.value) || 0));
+                      updateHueShift(scale.id, key, v);
+                    }}
+                    style={{
+                      ...inputStyle,
+                      width: 52,
+                      textAlign: 'right',
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      padding: '3px 6px',
+                      flexShrink: 0,
+                    }}
+                    className="focus-visible-ring"
+                  />
+                  <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-tertiary)', whiteSpace: 'nowrap' }}>
+                    = {effectiveDeg}°
+                  </span>
+                </div>
+                <div style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--p-text-tertiary)', marginTop: 2, paddingLeft: 58 }}>
+                  h {Math.round(stepHue)}° → {pName} ({primary}°) · {dist}° away · auto {autoBase}°
+                </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input
-                  id={key === 'lightEndAdjust' ? lightEndAdjustId : darkEndAdjustId}
-                  name={key}
-                  type="number"
-                  min={-90}
-                  max={90}
-                  value={adjust}
-                  onChange={(e) => {
-                    const v = Math.max(-90, Math.min(90, parseInt(e.target.value) || 0));
-                    updateHueShift(scale.id, key, v);
-                  }}
-                  style={{
-                    ...inputStyle,
-                    width: 64,
-                    textAlign: 'right',
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                    flexShrink: 0,
-                  }}
-                  className="focus-visible-ring"
-                />
-                <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>°</span>
-              </div>
-            </div>
-          );
-        })}
+            );
+          });
+        })()}
       </div>
 
       {/* Active step detail */}
@@ -373,6 +379,8 @@ export function RightPanel({ scale, activeStep }: Props) {
                   Hex (sRGB)
                 </span>
                 <button
+                  aria-label={`Copy hex value ${activeStep.hex}`}
+                  className="focus-visible-ring copyable-value"
                   style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--p-text)', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
                   title="Click to copy"
                   onClick={() => navigator.clipboard?.writeText(activeStep.hex)?.catch(() => {})}
@@ -387,6 +395,8 @@ export function RightPanel({ scale, activeStep }: Props) {
                     Display P3
                   </span>
                   <button
+                    aria-label={`Copy Display P3 value ${activeStep.displayP3}`}
+                    className="focus-visible-ring copyable-value"
                     style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--p-text)', cursor: 'pointer', textAlign: 'right', wordBreak: 'break-all', background: 'none', border: 'none', padding: 0 }}
                     title="Click to copy"
                     onClick={() => navigator.clipboard?.writeText(activeStep.displayP3!)?.catch(() => {})}
@@ -410,20 +420,37 @@ export function RightPanel({ scale, activeStep }: Props) {
 
           {/* Contrast */}
           <div style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
-            {[['#ffffff', 'on white'] as const, ['#000000', 'on black'] as const].map(([bg, label]) => {
-              const c = getContrast(activeStep.hex, bg);
-              return (
-                <div key={bg} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                  <span>{label}</span>
-                  <span style={{ fontFamily: 'monospace', color: 'var(--p-text)' }}>
-                    {c.ratio.toFixed(2)}
-                    <span style={{ marginLeft: 6, fontSize: 10, color: c.level === 'fail' ? 'var(--p-danger)' : 'var(--p-success)', fontWeight: 600 }}>
-                      {c.level === 'fail' ? 'Fail' : c.level}
-                    </span>
-                  </span>
-                </div>
-              );
-            })}
+            {contrastMode === 'apca'
+              ? [['#ffffff', 'on white'] as const, ['#000000', 'on black'] as const].map(([bg, label]) => {
+                  const lc = getApcaContrast(activeStep.hex, bg);
+                  const absLc = Math.abs(lc);
+                  const passing = absLc >= 45;
+                  return (
+                    <div key={bg} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                      <span>{label}</span>
+                      <span style={{ fontFamily: 'monospace', color: 'var(--p-text)' }}>
+                        Lc {lc.toFixed(1)}
+                        <span style={{ marginLeft: 6, fontSize: 10, color: passing ? 'var(--p-success)' : 'var(--p-danger)', fontWeight: 600 }}>
+                          {absLc >= 75 ? '75+' : absLc >= 60 ? '60+' : absLc >= 45 ? '45+' : 'Fail'}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })
+              : [['#ffffff', 'on white'] as const, ['#000000', 'on black'] as const].map(([bg, label]) => {
+                  const c = getContrast(activeStep.hex, bg);
+                  return (
+                    <div key={bg} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                      <span>{label}</span>
+                      <span style={{ fontFamily: 'monospace', color: 'var(--p-text)' }}>
+                        {c.ratio.toFixed(2)}
+                        <span style={{ marginLeft: 6, fontSize: 10, color: c.level === 'fail' ? 'var(--p-danger)' : 'var(--p-success)', fontWeight: 600 }}>
+                          {c.level === 'fail' ? 'Fail' : c.level}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
           </div>
         </div>
       )}

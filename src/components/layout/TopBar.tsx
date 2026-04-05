@@ -3,7 +3,7 @@ import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
 import type { StepNamingPreset } from '../../types/palette';
 
-type AppMode = 'edit' | 'preview' | 'visualize' | 'combos';
+type AppMode = 'edit' | 'preview' | 'combos';
 type AppTheme = 'light' | 'dark';
 
 interface Props {
@@ -68,6 +68,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
   const menuRef = useRef<HTMLDivElement | null>(null);
   const contrastButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
   const modeButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
+  const gamutButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
   const menuButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const saveLabel =
@@ -93,7 +94,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
     }
   }, [menuOpen]);
 
-  function handleRadioGroupKeyDown<T extends string>(
+  function handleRadioGroupKeyDown<T>(
     event: React.KeyboardEvent,
     values: readonly T[],
     current: T,
@@ -174,7 +175,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
       {/* Steps — applies to all scales */}
       {scale && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <span style={labelStyle}>Steps</span>
+          <label htmlFor="steps-preset" style={labelStyle}>Steps</label>
           <select
             id="steps-preset"
             name="steps-preset"
@@ -202,7 +203,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
       {/* Lightness — applies to active scale */}
       {scale && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <span style={labelStyle}>Lightness</span>
+          <label htmlFor="lightness-preset" style={labelStyle}>Lightness</label>
           <select
             id="lightness-preset"
             name="lightness-preset"
@@ -276,7 +277,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
       <div
         role="radiogroup"
         aria-label="App mode"
-        onKeyDown={(event) => handleRadioGroupKeyDown(event, ['edit', 'preview', 'visualize', 'combos'] as const, mode, onModeChange, modeButtonsRef)}
+        onKeyDown={(event) => handleRadioGroupKeyDown(event, ['edit', 'preview', 'combos'] as const, mode, onModeChange, modeButtonsRef)}
         style={{
           display: 'flex',
           border: '1px solid var(--p-border)',
@@ -285,7 +286,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
           flexShrink: 0,
         }}
       >
-        {(['edit', 'preview', 'visualize', 'combos'] as const).map((m, i) => (
+        {(['edit', 'preview', 'combos'] as const).map((m, i) => (
           <button
             key={m}
             role="radio"
@@ -316,6 +317,16 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
       <div
         role="radiogroup"
         aria-label="Gamut preview"
+        onKeyDown={(event) =>
+          handleRadioGroupKeyDown(
+            event,
+            [false, true] as const,
+            srgbPreview,
+            (nextValue) => {
+              if (nextValue !== srgbPreview) onToggleSrgbPreview();
+            },
+            gamutButtonsRef,
+          )}
         style={{
           display: 'flex',
           border: '1px solid var(--p-border)',
@@ -332,7 +343,10 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
               role="radio"
               aria-checked={active}
               aria-label={isSrgb ? 'sRGB preview mode' : 'Display P3 preview mode'}
+              ref={(node) => { gamutButtonsRef.current[i] = node; }}
+              tabIndex={active ? 0 : -1}
               onClick={() => { if (!active) onToggleSrgbPreview(); }}
+              className="focus-visible-ring"
               style={{
                 padding: '4px 10px',
                 fontSize: 11,

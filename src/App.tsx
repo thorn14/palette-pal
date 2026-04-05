@@ -4,7 +4,6 @@ import { Sidebar } from './components/layout/Sidebar';
 import { RightPanel } from './components/layout/RightPanel';
 import { CurveOverlayEditor } from './components/curves/CurveOverlayEditor';
 import { PalettePreview } from './components/preview/PalettePreview';
-import { PaletteColorWheel } from './components/visualize/PaletteColorWheel';
 import { AccessibleCombos } from './components/accessibility/AccessibleCombos';
 import { ExportModal } from './components/export/ExportModal';
 import { ImportModal } from './components/export/ImportModal';
@@ -14,7 +13,7 @@ import { usePaletteStore, selectActiveScale } from './store/paletteStore';
 import { useGeneratedRamp } from './hooks/useGeneratedRamp';
 import type { ColorScale } from './types/palette';
 
-type AppMode = 'edit' | 'preview' | 'visualize' | 'combos';
+type AppMode = 'edit' | 'preview' | 'combos';
 type AppTheme = 'dark' | 'light';
 
 function EditPanel({ scale }: { scale: ColorScale }) {
@@ -113,7 +112,6 @@ export default function App() {
             }}
           />
         )}
-        {mode === 'visualize' && <PaletteColorWheel />}
         {mode === 'combos' && <AccessibleCombos />}
       </main>
 
