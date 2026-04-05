@@ -43,6 +43,7 @@ interface PaletteActions {
   setContrastMode: (mode: ContrastMode) => void;
   bulkCreateScales: (scales: Array<{ sourceHex: string; name: string }>, namingPreset: StepNamingPreset, lightnessPreset: LightnessPreset) => void;
   importScales: (imported: ImportedScale[], replace: boolean) => void;
+  toggleSrgbPreview: () => void;
 }
 
 const DEFAULT_HEX = '#1894f8';
@@ -217,19 +218,22 @@ function loadInitialState(): PaletteState {
       cfg.activeScaleId && scales.some((s) => s.id === cfg.activeScaleId)
         ? cfg.activeScaleId
         : null;
-    return { scales, activeScaleId, focusedStepRef: null, contrastMode: 'wcag' };
+    return { scales, activeScaleId, focusedStepRef: null, contrastMode: 'wcag', srgbPreview: false };
   }
   return {
     scales: [makeDefaultScale(DEFAULT_HEX, 'Blue')],
     activeScaleId: null,
     focusedStepRef: null,
     contrastMode: 'wcag',
+    srgbPreview: false,
   };
 }
 
 export const usePaletteStore = create<PaletteState & PaletteActions>()(
   immer((set) => ({
     ...loadInitialState(),
+
+    toggleSrgbPreview: () => set((state) => { state.srgbPreview = !state.srgbPreview; }),
 
     addScale: (sourceHex, name) => set((state) => {
       const scale = makeDefaultScale(sourceHex, name ?? `Color ${state.scales.length + 1}`);

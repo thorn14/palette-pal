@@ -17,6 +17,8 @@ interface Props {
   theme: AppTheme;
   onThemeChange: (theme: AppTheme) => void;
   saveStatus: 'idle' | 'saving' | 'saved' | 'error';
+  srgbPreview: boolean;
+  onToggleSrgbPreview: () => void;
 }
 
 const divider = (
@@ -56,7 +58,7 @@ const linkBtnStyle: React.CSSProperties = {
 };
 
 
-export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightness, mode, onModeChange, theme, onThemeChange, saveStatus }: Props) {
+export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightness, mode, onModeChange, theme, onThemeChange, saveStatus, srgbPreview, onToggleSrgbPreview }: Props) {
   const updateStepNamingAll = usePaletteStore((s) => s.updateStepNamingAll);
   const applyLightnessPreset = usePaletteStore((s) => s.applyLightnessPreset);
   const scale = usePaletteStore(selectActiveScale);
@@ -307,6 +309,50 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
             {m}
           </button>
         ))}
+      </div>
+
+      {divider}
+
+      <div
+        role="radiogroup"
+        aria-label="Gamut preview"
+        style={{
+          display: 'flex',
+          border: '1px solid var(--p-border)',
+          borderRadius: 6,
+          overflow: 'hidden',
+          flexShrink: 0,
+        }}
+      >
+        {([false, true] as const).map((isSrgb, i) => {
+          const active = srgbPreview === isSrgb;
+          return (
+            <button
+              key={isSrgb ? 'srgb' : 'p3'}
+              role="radio"
+              aria-checked={active}
+              aria-label={isSrgb ? 'sRGB preview mode' : 'Display P3 preview mode'}
+              onClick={() => { if (!active) onToggleSrgbPreview(); }}
+              style={{
+                padding: '4px 10px',
+                fontSize: 11,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                background: active ? 'var(--p-bg-inset)' : 'var(--p-bg)',
+                color: active ? 'var(--p-text)' : 'var(--p-text-secondary)',
+                border: 'none',
+                borderLeft: i > 0 ? '1px solid var(--p-border)' : 'none',
+                cursor: 'pointer',
+              }}
+              title={isSrgb
+                ? 'Preview how colors appear on sRGB displays'
+                : 'Show wide-gamut Display P3 colors on supported displays'}
+            >
+              {isSrgb ? 'sRGB' : 'P3'}
+            </button>
+          );
+        })}
       </div>
 
       <button

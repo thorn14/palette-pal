@@ -69,6 +69,7 @@ export interface PaletteState {
   activeScaleId: string | null;
   focusedStepRef: { scaleId: string; stepName: string } | null;
   contrastMode: ContrastMode;
+  srgbPreview: boolean;
 }
 
 // W3C DTCG 2025.10 color value format

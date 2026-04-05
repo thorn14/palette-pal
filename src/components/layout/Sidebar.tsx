@@ -42,6 +42,7 @@ function ScaleItem({
   onMoveDown: () => void;
 }) {
   const ramp = useGeneratedRamp(scale);
+  const srgbPreview = usePaletteStore((s) => s.srgbPreview);
 
   return (
     <button
@@ -106,7 +107,7 @@ function ScaleItem({
           {ramp.steps.map((step) => (
             <div
               key={step.name}
-              style={{ flex: 1, backgroundColor: (supportsP3 && step.displayP3) || step.hex }}
+              style={{ flex: 1, backgroundColor: (!srgbPreview && supportsP3 && step.displayP3) || step.hex }}
             />
           ))}
         </div>

@@ -13,7 +13,10 @@ interface Props {
 }
 
 export function Swatch({ step, isActive, onClick }: Props) {
+  const srgbPreview = usePaletteStore((s) => s.srgbPreview);
   const contrastMode = usePaletteStore((s) => s.contrastMode);
+
+  const bgColor = (!srgbPreview && supportsP3 && step.displayP3) || step.hex;
 
   if (contrastMode === 'apca') {
     const lcWhite = getApcaContrast('#ffffff', step.hex);
@@ -27,7 +30,7 @@ export function Swatch({ step, isActive, onClick }: Props) {
         className={`motion-safe-swatch focus-visible-ring flex flex-col items-start justify-end p-2 rounded cursor-pointer
           ${isActive ? 'ring-2 ring-white ring-offset-2 ring-offset-neutral-900 scale-105' : 'motion-safe hover:scale-[1.03]'}
         `}
-        style={{ backgroundColor: (supportsP3 && step.displayP3) || step.hex, minHeight: '80px', minWidth: '64px' }}
+        style={{ backgroundColor: bgColor, minHeight: '80px', minWidth: '64px' }}
         title={`${step.name}: ${step.hex}`}
       >
         <span className="text-[10px] font-mono font-medium leading-tight" style={{ color: textColor }}>
@@ -54,7 +57,7 @@ export function Swatch({ step, isActive, onClick }: Props) {
       className={`motion-safe-swatch focus-visible-ring flex flex-col items-start justify-end p-2 rounded cursor-pointer
         ${isActive ? 'ring-2 ring-white ring-offset-2 ring-offset-neutral-900 scale-105' : 'motion-safe hover:scale-[1.03]'}
       `}
-      style={{ backgroundColor: (supportsP3 && step.displayP3) || step.hex, minHeight: '80px', minWidth: '64px' }}
+      style={{ backgroundColor: bgColor, minHeight: '80px', minWidth: '64px' }}
       title={`${step.name}: ${step.hex}`}
     >
       <span className="text-[10px] font-mono font-medium leading-tight" style={{ color: textColor }}>

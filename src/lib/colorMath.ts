@@ -274,16 +274,13 @@ export function generateRamp(scale: ColorScale): GeneratedRamp {
       }
     }
 
-    // Clamp to sRGB for display hex
+    // Clamp to sRGB to produce the fallback hex value
     const sourceAlpha = clampAlpha(scale.sourceAlpha ?? sourceOklch.alpha);
-    const culoriColor = clampChroma({ mode: 'oklch' as const, l, c: cP3, h, alpha: sourceAlpha }, 'oklch');
-    const hex = formatHex(culoriColor) ?? '#000000';
-    const oklchOut: OklchColor = {
-      l: culoriColor.l ?? l,
-      c: culoriColor.c ?? cP3,
-      h: culoriColor.h ?? h,
-      alpha: clampAlpha(culoriColor.alpha ?? sourceAlpha),
-    };
+    const srgbClamped = clampChroma({ mode: 'oklch' as const, l, c: cP3, h, alpha: sourceAlpha }, 'oklch');
+    const hex = formatHex(srgbClamped) ?? '#000000';
+    // Store the true rendered OKLCH: P3-clamped chroma (cP3) reflects the actual displayed color.
+    // For sRGB colors cP3 === sRGB boundary chroma, so no regression there.
+    const oklchOut: OklchColor = { l, c: cP3, h, alpha: clampAlpha(sourceAlpha) };
 
     const relativeLuminance = getRelativeLuminance(hex);
 
