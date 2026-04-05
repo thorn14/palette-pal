@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import type { ColorScale, GeneratedRamp } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
-import { getContrast, computeHueShift, smoothCurveValues } from '../../lib/colorMath';
+import { getContrast, getApcaContrast, computeHueShift, smoothCurveValues } from '../../lib/colorMath';
 import { buildCurvePath } from '../../lib/curveInterpolation';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
@@ -20,6 +20,14 @@ const WCAG_STYLES: Record<string, { bg: string; text: string; label: string }> =
   'AA-large': { bg: 'var(--badge-aal-bg)',  text: 'var(--badge-aal-text)',  label: '3:1'  },
   fail:       { bg: 'var(--badge-fail-bg)', text: 'var(--badge-fail-text)', label: 'Fail' },
 };
+
+function getApcaBadge(lc: number): { bg: string; text: string; label: string } {
+  const absLc = Math.abs(lc);
+  if (absLc >= 75) return { bg: 'var(--p-success-subtle)', text: 'var(--p-success)', label: 'Lc 75+' };
+  if (absLc >= 60) return { bg: 'var(--p-success-subtle)', text: 'var(--p-success)', label: 'Lc 60+' };
+  if (absLc >= 45) return { bg: 'var(--p-success-subtle)', text: 'var(--p-success)', label: 'Lc 45+' };
+  return { bg: 'var(--badge-fail-bg)', text: 'var(--badge-fail-text)', label: 'Fail' };
+}
 
 interface DragState {
   curveKey: CurveKey;
@@ -46,6 +54,7 @@ const SHORTCUTS = [
 ];
 
 export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }: Props) {
+  const contrastMode = usePaletteStore((s) => s.contrastMode);
   const updateCurveValue  = usePaletteStore((s) => s.updateCurveValue);
   const updateCurveValues = usePaletteStore((s) => s.updateCurveValues);
   const updateCurveNodeType = usePaletteStore((s) => s.updateCurveNodeType);
@@ -468,7 +477,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
         </svg>
       </div>
 
-      {/* WCAG badges row */}
+      {/* Contrast badges row */}
       <div
         className="flex shrink-0 border-t"
         style={{ height: 34, borderColor: 'var(--p-border)' }}
@@ -477,18 +486,37 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
           const activeHex =
             activeStepIndex !== null ? ramp.steps[activeStepIndex]?.hex : null;
 
-          let result;
-          if (activeHex !== null && i !== activeStepIndex) {
-            result = getContrast(step.hex, activeHex);
-          } else if (activeStepIndex === null) {
-            const cw = getContrast(step.hex, '#ffffff');
-            const cb = getContrast(step.hex, '#000000');
-            result = cw.ratio > cb.ratio ? cw : cb;
-          } else {
-            result = null;
-          }
+          let badge: { bg: string; text: string; label: string } | null = null;
+          let title: string | undefined;
 
-          const s = result ? (WCAG_STYLES[result.level] ?? WCAG_STYLES.fail) : null;
+          if (contrastMode === 'apca') {
+            if (activeHex !== null && i !== activeStepIndex) {
+              const lc = getApcaContrast(step.hex, activeHex);
+              badge = getApcaBadge(lc);
+              title = `APCA Lc: ${lc.toFixed(1)}`;
+            } else if (activeStepIndex === null) {
+              const lcWhite = getApcaContrast('#ffffff', step.hex);
+              const lcBlack = getApcaContrast('#000000', step.hex);
+              const bestLc = Math.abs(lcBlack) >= Math.abs(lcWhite) ? lcBlack : lcWhite;
+              badge = getApcaBadge(bestLc);
+              title = `APCA Lc: ${bestLc.toFixed(1)}`;
+            }
+          } else {
+            let result;
+            if (activeHex !== null && i !== activeStepIndex) {
+              result = getContrast(step.hex, activeHex);
+            } else if (activeStepIndex === null) {
+              const cw = getContrast(step.hex, '#ffffff');
+              const cb = getContrast(step.hex, '#000000');
+              result = cw.ratio > cb.ratio ? cw : cb;
+            } else {
+              result = null;
+            }
+            if (result) {
+              badge = WCAG_STYLES[result.level] ?? WCAG_STYLES.fail;
+              title = `${result.ratio.toFixed(2)}:1`;
+            }
+          }
 
           return (
             <div
@@ -496,12 +524,12 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
               className="flex-1 flex items-center justify-center border-r last:border-r-0"
               style={{ borderColor: 'var(--p-border)' }}
             >
-              {s ? (
+              {badge ? (
                 <span
-                  title={result ? `${result.ratio.toFixed(2)}:1` : undefined}
+                  title={title}
                   style={{
-                    backgroundColor: s.bg,
-                    color: s.text,
+                    backgroundColor: badge.bg,
+                    color: badge.text,
                     fontSize: 10,
                     fontWeight: 600,
                     padding: '2px 5px',
@@ -509,7 +537,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
                     cursor: 'default',
                   }}
                 >
-                  {s.label}
+                  {badge.label}
                 </span>
               ) : (
                 <span
