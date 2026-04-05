@@ -3,7 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { usePaletteStore } from '../../store/paletteStore';
 import { generateRamp } from '../../lib/colorMath';
 import { getContrast, getApcaContrast } from '../../lib/colorMath';
-import type { WcagMapEntry, ApcaMapEntry, ContrastMapColorRef } from '../../types/palette';
+import type { WcagMapEntry, ApcaMapEntry, ContrastMapColorRef, ContrastMode } from '../../types/palette';
 
 type WcagLevel = 'aaa' | 'aa' | 'aa-large';
 type ApcaLevel = 'lc75' | 'lc60' | 'lc45';
@@ -152,7 +152,7 @@ function FilterBar({
   setApcaLevel: (l: ApcaLevel) => void;
   sortAsc: boolean;
   setSortAsc: (v: boolean) => void;
-  contrastMode: string;
+  contrastMode: ContrastMode;
 }) {
   const btnStyle = (active: boolean) => ({
     padding: '4px 10px',
