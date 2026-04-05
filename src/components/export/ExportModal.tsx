@@ -79,7 +79,7 @@ function downloadJSON(json: string, filename: string) {
   a.href = url;
   a.download = filename;
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export function ExportModal({ onClose }: Props) {

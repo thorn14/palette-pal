@@ -168,6 +168,8 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
 
       {/* WCAG / APCA toggle */}
       <div
+        role="radiogroup"
+        aria-label="Contrast mode"
         style={{
           display: 'flex',
           border: '1px solid var(--p-border)',
@@ -179,6 +181,8 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
         {(['wcag', 'apca'] as const).map((m, i) => (
           <button
             key={m}
+            role="radio"
+            aria-checked={contrastMode === m}
             onClick={() => setContrastMode(m)}
             style={{
               padding: '4px 10px',

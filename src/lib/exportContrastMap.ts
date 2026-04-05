@@ -1,4 +1,4 @@
-import { wcagContrast, parse, converter } from 'culori';
+import { wcagLuminance, parse, converter } from 'culori';
 import { APCAcontrast, sRGBtoY } from 'apca-w3';
 import type { GeneratedRamp, ContrastMapColorRef } from '../types/palette';
 
@@ -38,6 +38,19 @@ function precomputeApcaY(steps: ContrastMapColorRef[]): number[] {
   });
 }
 
+function precomputeWcagLuminance(steps: ColorEntry[]): number[] {
+  return steps.map((s) => {
+    const c = parse(s.hex);
+    return c ? (wcagLuminance(c) ?? 0) : 0;
+  });
+}
+
+function wcagRatio(lum1: number, lum2: number): number {
+  const l1 = Math.max(lum1, lum2);
+  const l2 = Math.min(lum1, lum2);
+  return (l1 + 0.05) / (l2 + 0.05);
+}
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
@@ -45,12 +58,13 @@ function round2(n: number): number {
 export function buildWcagContrastMatrix(ramps: GeneratedRamp[]): WcagMatrixExport {
   const colors = buildSteps(ramps);
   const n = colors.length;
+  const luminances = precomputeWcagLuminance(colors);
   const matrix: (number | null)[][] = Array.from({ length: n }, () => new Array(n).fill(null));
 
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
       if (i === j || colors[i].hex === colors[j].hex) continue;
-      const ratio = wcagContrast(colors[i].hex, colors[j].hex);
+      const ratio = wcagRatio(luminances[i], luminances[j]);
       if (ratio >= 3) matrix[i][j] = round2(ratio);
     }
   }
