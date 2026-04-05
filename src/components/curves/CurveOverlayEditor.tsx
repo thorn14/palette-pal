@@ -1,10 +1,10 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-
-const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 import type { ColorScale, GeneratedRamp } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
 import { getContrast, computeHueShift, smoothCurveValues } from '../../lib/colorMath';
 import { buildCurvePath } from '../../lib/curveInterpolation';
+
+const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
 type CurveKey = 'lightness' | 'chroma' | 'hue';
 
