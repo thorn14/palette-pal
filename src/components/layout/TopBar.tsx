@@ -3,7 +3,7 @@ import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
 import type { StepNamingPreset } from '../../types/palette';
 
-type AppMode = 'edit' | 'preview' | 'visualize';
+type AppMode = 'edit' | 'preview' | 'combos';
 type AppTheme = 'light' | 'dark';
 
 interface Props {
@@ -17,6 +17,8 @@ interface Props {
   theme: AppTheme;
   onThemeChange: (theme: AppTheme) => void;
   saveStatus: 'idle' | 'saving' | 'saved' | 'error';
+  srgbPreview: boolean;
+  onToggleSrgbPreview: () => void;
 }
 
 const divider = (
@@ -56,12 +58,18 @@ const linkBtnStyle: React.CSSProperties = {
 };
 
 
-export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightness, mode, onModeChange, theme, onThemeChange, saveStatus }: Props) {
+export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightness, mode, onModeChange, theme, onThemeChange, saveStatus, srgbPreview, onToggleSrgbPreview }: Props) {
   const updateStepNamingAll = usePaletteStore((s) => s.updateStepNamingAll);
   const applyLightnessPreset = usePaletteStore((s) => s.applyLightnessPreset);
   const scale = usePaletteStore(selectActiveScale);
+  const contrastMode = usePaletteStore((s) => s.contrastMode);
+  const setContrastMode = usePaletteStore((s) => s.setContrastMode);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const contrastButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
+  const modeButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
+  const gamutButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
+  const menuButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const saveLabel =
     saveStatus === 'saving' ? 'Saving…' :
@@ -80,6 +88,62 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
     return () => document.removeEventListener('mousedown', handleClick);
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (menuOpen) {
+      menuButtonRefs.current[0]?.focus();
+    }
+  }, [menuOpen]);
+
+  function handleRadioGroupKeyDown<T>(
+    event: React.KeyboardEvent,
+    values: readonly T[],
+    current: T,
+    onChange: (value: T) => void,
+    refs: React.MutableRefObject<Array<HTMLButtonElement | null>>,
+  ) {
+    const currentIndex = values.indexOf(current);
+    if (currentIndex === -1) return;
+
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = (currentIndex + 1) % values.length;
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = (currentIndex - 1 + values.length) % values.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = values.length - 1;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    onChange(values[nextIndex]);
+    refs.current[nextIndex]?.focus();
+  }
+
+  function handleMenuKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    const items = menuButtonRefs.current.filter((item): item is HTMLButtonElement => Boolean(item));
+    const activeIndex = items.findIndex((item) => item === document.activeElement);
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setMenuOpen(false);
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      items[(activeIndex + 1 + items.length) % items.length]?.focus();
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      const previousIndex = activeIndex === -1 ? items.length : activeIndex;
+      items[(previousIndex - 1 + items.length) % items.length]?.focus();
+    }
+  }
+
   return (
     <header
       style={{
@@ -96,7 +160,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
     >
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
           <circle cx="10" cy="10" r="9" fill="var(--p-bg-subtle)" stroke="var(--p-border)" strokeWidth="1.5" />
           <circle cx="7" cy="7" r="2.2" fill="var(--p-text-secondary)" />
           <circle cx="13" cy="7" r="2.2" fill="var(--p-text-tertiary)" />
@@ -111,7 +175,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
       {/* Steps — applies to all scales */}
       {scale && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <span style={labelStyle}>Steps</span>
+          <label htmlFor="steps-preset" style={labelStyle}>Steps</label>
           <select
             id="steps-preset"
             name="steps-preset"
@@ -122,13 +186,14 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
               if (v === 'custom') onEditSteps();
             }}
             style={compactSelectStyle}
+            className="focus-visible-ring"
           >
             <option value="tailwind">Tailwind</option>
             <option value="numeric">Numeric</option>
             <option value="custom">Custom…</option>
           </select>
           {scale.naming.preset === 'custom' && (
-            <button onClick={onEditSteps} style={linkBtnStyle}>edit</button>
+            <button onClick={onEditSteps} style={linkBtnStyle} className="focus-visible-ring">edit</button>
           )}
         </div>
       )}
@@ -138,7 +203,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
       {/* Lightness — applies to active scale */}
       {scale && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <span style={labelStyle}>Lightness</span>
+          <label htmlFor="lightness-preset" style={labelStyle}>Lightness</label>
           <select
             id="lightness-preset"
             name="lightness-preset"
@@ -153,22 +218,23 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
               }
             }}
             style={compactSelectStyle}
+            className="focus-visible-ring"
           >
             {LIGHTNESS_PRESET_OPTIONS.map((p) => (
               <option key={p.value} value={p.value}>{p.label}</option>
             ))}
           </select>
           {scale.lightnessPreset === 'custom' && (
-            <button onClick={onEditLightness} style={linkBtnStyle}>edit</button>
+            <button onClick={onEditLightness} style={linkBtnStyle} className="focus-visible-ring">edit</button>
           )}
         </div>
       )}
 
-      {/* Spacer */}
-      <div style={{ flex: 1 }} />
-
-      {/* Edit / Preview / Visualize toggle */}
+      {/* WCAG / APCA toggle */}
       <div
+        role="radiogroup"
+        aria-label="Contrast mode"
+        onKeyDown={(event) => handleRadioGroupKeyDown(event, ['wcag', 'apca'] as const, contrastMode, setContrastMode, contrastButtonsRef)}
         style={{
           display: 'flex',
           border: '1px solid var(--p-border)',
@@ -177,10 +243,58 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
           flexShrink: 0,
         }}
       >
-        {(['edit', 'preview', 'visualize'] as const).map((m, i) => (
+        {(['wcag', 'apca'] as const).map((m, i) => (
           <button
             key={m}
+            role="radio"
+            aria-checked={contrastMode === m}
+            onClick={() => setContrastMode(m)}
+            ref={(node) => { contrastButtonsRef.current[i] = node; }}
+            tabIndex={contrastMode === m ? 0 : -1}
+            className="focus-visible-ring"
+            style={{
+              padding: '4px 10px',
+              fontSize: 11,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              background: contrastMode === m ? 'var(--p-bg-inset)' : 'var(--p-bg)',
+              color: contrastMode === m ? 'var(--p-text)' : 'var(--p-text-secondary)',
+              border: 'none',
+              borderLeft: i > 0 ? '1px solid var(--p-border)' : 'none',
+              cursor: 'pointer',
+            }}
+          >
+            {m}
+          </button>
+        ))}
+      </div>
+
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* Edit / Preview / Visualize / Combos toggle */}
+      <div
+        role="radiogroup"
+        aria-label="App mode"
+        onKeyDown={(event) => handleRadioGroupKeyDown(event, ['edit', 'preview', 'combos'] as const, mode, onModeChange, modeButtonsRef)}
+        style={{
+          display: 'flex',
+          border: '1px solid var(--p-border)',
+          borderRadius: 6,
+          overflow: 'hidden',
+          flexShrink: 0,
+        }}
+      >
+        {(['edit', 'preview', 'combos'] as const).map((m, i) => (
+          <button
+            key={m}
+            role="radio"
+            aria-checked={mode === m}
             onClick={() => onModeChange(m)}
+            ref={(node) => { modeButtonsRef.current[i] = node; }}
+            tabIndex={mode === m ? 0 : -1}
+            className="focus-visible-ring"
             style={{
               padding: '4px 14px',
               fontSize: 12,
@@ -198,9 +312,68 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
         ))}
       </div>
 
+      {divider}
+
+      <div
+        role="radiogroup"
+        aria-label="Gamut preview"
+        onKeyDown={(event) =>
+          handleRadioGroupKeyDown(
+            event,
+            [false, true] as const,
+            srgbPreview,
+            (nextValue) => {
+              if (nextValue !== srgbPreview) onToggleSrgbPreview();
+            },
+            gamutButtonsRef,
+          )}
+        style={{
+          display: 'flex',
+          border: '1px solid var(--p-border)',
+          borderRadius: 6,
+          overflow: 'hidden',
+          flexShrink: 0,
+        }}
+      >
+        {([false, true] as const).map((isSrgb, i) => {
+          const active = srgbPreview === isSrgb;
+          return (
+            <button
+              key={isSrgb ? 'srgb' : 'p3'}
+              role="radio"
+              aria-checked={active}
+              aria-label={isSrgb ? 'sRGB preview mode' : 'Display P3 preview mode'}
+              ref={(node) => { gamutButtonsRef.current[i] = node; }}
+              tabIndex={active ? 0 : -1}
+              onClick={() => { if (!active) onToggleSrgbPreview(); }}
+              className="focus-visible-ring"
+              style={{
+                padding: '4px 10px',
+                fontSize: 11,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                background: active ? 'var(--p-bg-inset)' : 'var(--p-bg)',
+                color: active ? 'var(--p-text)' : 'var(--p-text-secondary)',
+                border: 'none',
+                borderLeft: i > 0 ? '1px solid var(--p-border)' : 'none',
+                cursor: 'pointer',
+              }}
+              title={isSrgb
+                ? 'Preview how colors appear on sRGB displays'
+                : 'Show wide-gamut Display P3 colors on supported displays'}
+            >
+              {isSrgb ? 'sRGB' : 'P3'}
+            </button>
+          );
+        })}
+      </div>
+
       <button
         onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')}
         title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+        aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+        className="focus-visible-ring"
         style={{
           width: 30,
           height: 30,
@@ -244,6 +417,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
           <button
             onClick={onSave}
             disabled={saveStatus === 'saving'}
+            className="focus-visible-ring"
             style={{
               padding: '4px 14px',
               fontWeight: 500,
@@ -263,11 +437,16 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
           <button
             onClick={() => setMenuOpen((open) => !open)}
             aria-label="More save/export options"
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+            className="focus-visible-ring"
             style={{
               padding: '4px 10px',
               borderLeft: '1px solid var(--p-border)',
               background: 'var(--p-bg)',
-              border: 'none',
+              borderTop: 'none',
+              borderRight: 'none',
+              borderBottom: 'none',
               cursor: 'pointer',
             }}
           >
@@ -277,6 +456,9 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
           </button>
           {menuOpen && (
             <div
+              role="menu"
+              aria-label="Save and export options"
+              onKeyDown={handleMenuKeyDown}
               style={{
                 position: 'absolute',
                 top: '110%',
@@ -291,11 +473,14 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
               }}
             >
               <button
+                ref={(node) => { menuButtonRefs.current[0] = node; }}
+                role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
                   onSave();
                 }}
                 disabled={saveStatus === 'saving'}
+                className="focus-visible-ring"
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -308,10 +493,13 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
                 Save
               </button>
               <button
+                ref={(node) => { menuButtonRefs.current[1] = node; }}
+                role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
                   onImport();
                 }}
+                className="focus-visible-ring"
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -324,10 +512,13 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
                 Import
               </button>
               <button
+                ref={(node) => { menuButtonRefs.current[2] = node; }}
+                role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
                   onExport();
                 }}
+                className="focus-visible-ring"
                 style={{
                   width: '100%',
                   padding: '8px 12px',

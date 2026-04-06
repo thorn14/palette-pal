@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { tryParseHex } from '../../lib/colorMath';
 
 interface Props {
@@ -8,6 +8,8 @@ interface Props {
 }
 
 export function ColorInput({ value, onChange, label = 'Source color' }: Props) {
+  const idBase = useId();
+  const textId = `${idBase}-hex`;
   const [draft, setDraft] = useState(value);
   const [error, setError] = useState(false);
 
@@ -33,7 +35,7 @@ export function ColorInput({ value, onChange, label = 'Source color' }: Props) {
 
   return (
     <div className="flex flex-col gap-1">
-      {label && <label className="text-xs text-neutral-400">{label}</label>}
+      {label && <label htmlFor={textId} className="text-xs text-neutral-400">{label}</label>}
       <div className="flex items-center gap-2">
         <input
           type="color"
@@ -41,14 +43,17 @@ export function ColorInput({ value, onChange, label = 'Source color' }: Props) {
           onChange={handleColorPicker}
           className="w-9 h-9 rounded cursor-pointer border-0 bg-transparent p-0"
           title="Pick color"
+          aria-label={`${label} picker`}
         />
         <input
+          id={textId}
+          name="hex-color"
           type="text"
           value={draft}
           onChange={handleChange}
           placeholder="#808080"
-          className={`flex-1 bg-neutral-800 border rounded-lg px-3 py-1.5 text-sm font-mono text-white focus:outline-none focus:ring-2 transition-colors
-            ${error ? 'border-red-500 focus:ring-red-500' : 'border-neutral-700 focus:ring-neutral-500'}`}
+          className={`flex-1 bg-neutral-800 border rounded-lg px-3 py-1.5 text-sm font-mono text-white focus:outline-none focus-visible:ring-2 transition-colors
+            ${error ? 'border-red-500 focus-visible:ring-red-500' : 'border-neutral-700 focus-visible:ring-neutral-500'}`}
           spellCheck={false}
         />
         {error && <span className="text-xs text-red-400">Invalid hex</span>}

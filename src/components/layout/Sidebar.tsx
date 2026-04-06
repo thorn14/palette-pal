@@ -7,7 +7,7 @@ const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(di
 
 function GripIcon() {
   return (
-    <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" style={{ display: 'block' }}>
+    <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" style={{ display: 'block' }} aria-hidden="true">
       <circle cx="3" cy="2.5" r="1.2" />
       <circle cx="7" cy="2.5" r="1.2" />
       <circle cx="3" cy="7" r="1.2" />
@@ -39,6 +39,8 @@ function ScaleItem({
   onDragEnd,
   onToggleSelect,
   onDuplicate,
+  onMoveUp,
+  onMoveDown,
 }: {
   scale: ColorScale;
   isActive: boolean;
@@ -51,12 +53,16 @@ function ScaleItem({
   onDragEnd: () => void;
   onToggleSelect: () => void;
   onDuplicate: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
 }) {
   const ramp = useGeneratedRamp(scale);
   const [hovered, setHovered] = useState(false);
+  const srgbPreview = usePaletteStore((s) => s.srgbPreview);
 
   return (
-    <div
+    <button
+      type="button"
       draggable
       onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart(); }}
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver(); }}
@@ -65,6 +71,19 @@ function ScaleItem({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.altKey && e.key === 'ArrowUp') {
+          e.preventDefault();
+          onMoveUp();
+        }
+        if (e.altKey && e.key === 'ArrowDown') {
+          e.preventDefault();
+          onMoveDown();
+        }
+      }}
+      aria-pressed={isActive}
+      aria-label={`${scale.name}. Press Enter to select. Press Option and Arrow keys to reorder.`}
+      className="focus-visible-ring"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -82,6 +101,8 @@ function ScaleItem({
         transition: 'opacity 0.1s',
         userSelect: 'none',
         position: 'relative',
+        width: '100%',
+        textAlign: 'left',
       }}
     >
       {/* Checkbox */}
@@ -114,7 +135,7 @@ function ScaleItem({
 
       {/* Name + mini ramp */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p
+        <span
           style={{
             fontSize: 12,
             fontWeight: isActive ? 600 : 400,
@@ -123,15 +144,16 @@ function ScaleItem({
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
+            display: 'block',
           }}
         >
           {scale.name}
-        </p>
+        </span>
         <div style={{ display: 'flex', height: 16, borderRadius: 3, overflow: 'hidden' }}>
           {ramp.steps.map((step) => (
             <div
               key={step.name}
-              style={{ flex: 1, backgroundColor: (supportsP3 && step.displayP3) || step.hex }}
+              style={{ flex: 1, backgroundColor: (!srgbPreview && supportsP3 && step.displayP3) || step.hex }}
             />
           ))}
         </div>
@@ -162,7 +184,7 @@ function ScaleItem({
       >
         <DuplicateIcon />
       </button>
-    </div>
+    </button>
   );
 }
 
@@ -316,6 +338,8 @@ export function Sidebar() {
                   }}
                   onToggleSelect={() => toggleSelectScale(scale.id)}
                   onDuplicate={() => duplicateScale(scale.id)}
+                  onMoveUp={() => i > 0 && reorderScales(i, i - 1)}
+                  onMoveDown={() => i < scales.length - 1 && reorderScales(i, i + 1)}
                 />
               </div>
             );
@@ -345,6 +369,7 @@ export function Sidebar() {
             type="color"
             value={newHex}
             onChange={(e) => setNewHex(e.target.value)}
+            aria-label="New scale color"
             style={{
               width: 28,
               height: 28,
@@ -360,6 +385,9 @@ export function Sidebar() {
             type="text"
             value={newHex}
             onChange={(e) => setNewHex(e.target.value)}
+            aria-label="New scale hex value"
+            name="new-scale-hex"
+            className="focus-visible-ring"
             style={{
               flex: 1,
               padding: '4px 6px',
@@ -369,13 +397,13 @@ export function Sidebar() {
               border: '1px solid var(--p-border)',
               borderRadius: 4,
               color: 'var(--p-text)',
-              outline: 'none',
             }}
             placeholder="#6366f1"
           />
         </div>
         <button
           onClick={() => { addScale(newHex); setNewHex('#6366f1'); }}
+          className="focus-visible-ring"
           style={{
             width: '100%',
             padding: '6px 0',

@@ -1,4 +1,5 @@
 import { parse, oklch, formatHex, wcagContrast, clampChroma, converter } from 'culori';
+import { APCAcontrast, sRGBtoY } from 'apca-w3';
 import type { ColorScale, OklchColor, GeneratedStep, GeneratedRamp, ContrastResult, WCAGLevel, GamutLevel } from '../types/palette';
 
 const toRgb = converter('rgb');
@@ -76,6 +77,16 @@ export function getContrast(hexA: string, hexB: string): ContrastResult {
   return { ratio, level };
 }
 
+// APCA contrast Lc value (signed: positive = dark-on-light, negative = light-on-dark)
+export function getApcaContrast(hexFg: string, hexBg: string): number {
+  const fg = toRgb(parse(hexFg));
+  const bg = toRgb(parse(hexBg));
+  if (!fg || !bg) return 0;
+  const fgY = sRGBtoY([(fg.r ?? 0) * 255, (fg.g ?? 0) * 255, (fg.b ?? 0) * 255]);
+  const bgY = sRGBtoY([(bg.r ?? 0) * 255, (bg.g ?? 0) * 255, (bg.b ?? 0) * 255]);
+  return APCAcontrast(fgY, bgY) as number;
+}
+
 // Classify a pre-clamped OKLCH color into its gamut tier
 export function checkGamut(l: number, c: number, h: number): GamutLevel {
   const pre = { mode: 'oklch' as const, l, c, h };
@@ -133,7 +144,7 @@ export function buildChromaCurve(chromaPeak: number, stepCount: number): number[
 }
 
 // Nearest RGB primary hue (R=0°, G=120°, B=240°)
-function nearestPrimary(baseHue: number): number {
+export function nearestPrimary(baseHue: number): number {
   return [0, 120, 240].reduce((best, p) =>
     Math.abs(circularDist(baseHue, p)) < Math.abs(circularDist(baseHue, best)) ? p : best
   );
@@ -213,17 +224,34 @@ export function buildDefaultCurves(sourceOklch: OklchColor, stepCount: number): 
   };
 }
 
+// Non-destructive smoothing: blends each interior node toward a weighted neighbor average.
+// Leaf nodes (first/last) are always preserved exactly.
+export function smoothCurveValues(values: number[], smoothing: number): number[] {
+  if (smoothing <= 0 || values.length <= 2) return values;
+  const result = values.slice();
+  const t = Math.min(1, Math.max(0, smoothing));
+  for (let i = 1; i < values.length - 1; i++) {
+    const avg = values[i - 1] * 0.25 + values[i] * 0.5 + values[i + 1] * 0.25;
+    result[i] = values[i] + (avg - values[i]) * t;
+  }
+  return result;
+}
+
 // Core ramp generation algorithm
 export function generateRamp(scale: ColorScale): GeneratedRamp {
   const { id, name, sourceOklch, stepCount, naming, curves, hueShift } = scale;
   const stepNames = resolveStepNames(naming.preset, stepCount, naming.customNames);
 
+  const lv = smoothCurveValues(curves.lightness.values, curves.lightness.smoothing ?? 0);
+  const cv = smoothCurveValues(curves.chroma.values, curves.chroma.smoothing ?? 0);
+  const hv = smoothCurveValues(curves.hue.values, curves.hue.smoothing ?? 0);
+
   const steps: GeneratedStep[] = [];
 
   for (let i = 0; i < stepCount; i++) {
-    const l = curves.lightness.values[i] ?? sourceOklch.l;
-    const c = curves.chroma.values[i] ?? sourceOklch.c;
-    const baseDeltaH = curves.hue.values[i] ?? 0;
+    const l = lv[i] ?? sourceOklch.l;
+    const c = cv[i] ?? sourceOklch.c;
+    const baseDeltaH = hv[i] ?? 0;
 
     // t=0 is lightest (i=0), t=1 is darkest (i=stepCount-1)
     const t = stepCount === 1 ? 0 : i / (stepCount - 1);
@@ -246,16 +274,13 @@ export function generateRamp(scale: ColorScale): GeneratedRamp {
       }
     }
 
-    // Clamp to sRGB for display hex
+    // Clamp to sRGB to produce the fallback hex value
     const sourceAlpha = clampAlpha(scale.sourceAlpha ?? sourceOklch.alpha);
-    const culoriColor = clampChroma({ mode: 'oklch' as const, l, c: cP3, h, alpha: sourceAlpha }, 'oklch');
-    const hex = formatHex(culoriColor) ?? '#000000';
-    const oklchOut: OklchColor = {
-      l: culoriColor.l ?? l,
-      c: culoriColor.c ?? cP3,
-      h: culoriColor.h ?? h,
-      alpha: clampAlpha(culoriColor.alpha ?? sourceAlpha),
-    };
+    const srgbClamped = clampChroma({ mode: 'oklch' as const, l, c: cP3, h, alpha: sourceAlpha }, 'oklch');
+    const hex = formatHex(srgbClamped) ?? '#000000';
+    // Store the true rendered OKLCH: P3-clamped chroma (cP3) reflects the actual displayed color.
+    // For sRGB colors cP3 === sRGB boundary chroma, so no regression there.
+    const oklchOut: OklchColor = { l, c: cP3, h, alpha: clampAlpha(sourceAlpha) };
 
     const relativeLuminance = getRelativeLuminance(hex);
 

@@ -4,7 +4,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { RightPanel } from './components/layout/RightPanel';
 import { CurveOverlayEditor } from './components/curves/CurveOverlayEditor';
 import { PalettePreview } from './components/preview/PalettePreview';
-import { PaletteColorWheel } from './components/visualize/PaletteColorWheel';
+import { AccessibleCombos } from './components/accessibility/AccessibleCombos';
 import { ExportModal } from './components/export/ExportModal';
 import { ImportModal } from './components/export/ImportModal';
 import { StepListModal } from './components/steps/StepListModal';
@@ -13,7 +13,7 @@ import { usePaletteStore, selectActiveScale } from './store/paletteStore';
 import { useGeneratedRamp } from './hooks/useGeneratedRamp';
 import type { ColorScale } from './types/palette';
 
-type AppMode = 'edit' | 'preview' | 'visualize';
+type AppMode = 'edit' | 'preview' | 'combos';
 type AppTheme = 'dark' | 'light';
 
 function EditPanel({ scale }: { scale: ColorScale }) {
@@ -48,24 +48,8 @@ export default function App() {
   const [theme, setTheme] = useState<AppTheme>('dark');
   const scale = usePaletteStore(selectActiveScale);
   const scales = usePaletteStore((s) => s.scales);
-  const undo = usePaletteStore((s) => s.undo);
-  const redo = usePaletteStore((s) => s.redo);
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      const mod = e.metaKey || e.ctrlKey;
-      if (!mod) return;
-      if (e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        undo();
-      } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
-        e.preventDefault();
-        redo();
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
+  const srgbPreview = usePaletteStore((s) => s.srgbPreview);
+  const toggleSrgbPreview = usePaletteStore((s) => s.toggleSrgbPreview);
 
   async function handleSave() {
     setSaveStatus('saving');
@@ -112,9 +96,11 @@ export default function App() {
         theme={theme}
         onThemeChange={setTheme}
         saveStatus={saveStatus}
+        srgbPreview={srgbPreview}
+        onToggleSrgbPreview={toggleSrgbPreview}
       />
 
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+      <main id="main-content" style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {mode === 'edit' && scales.length > 0 && <Sidebar />}
 
         {mode === 'edit' && (scale ? <EditPanel scale={scale} /> : <BulkCreatePanel />)}
@@ -126,8 +112,8 @@ export default function App() {
             }}
           />
         )}
-        {mode === 'visualize' && <PaletteColorWheel />}
-      </div>
+        {mode === 'combos' && <AccessibleCombos />}
+      </main>
 
       {showExport && <ExportModal onClose={() => setShowExport(false)} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}

@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import type { ColorScale, GeneratedStep } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
-import { getContrast, sourceWithChromaToHex, autoHueShiftBase, maxP3Chroma, maxSrgbChroma } from '../../lib/colorMath';
+import { getContrast, getApcaContrast, sourceWithChromaToHex, autoHueShiftBase, nearestPrimary, maxP3Chroma, maxSrgbChroma } from '../../lib/colorMath';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
+
+const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
 interface Props {
   scale: ColorScale;
@@ -11,17 +13,17 @@ interface Props {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--p-text-secondary)', marginBottom: 8 }}>
+    <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--p-text-secondary)', marginBottom: 8 }}>
       {children}
-    </p>
+    </div>
   );
 }
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
+function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
   return (
-    <p style={{ fontSize: 12, color: 'var(--p-text-secondary)', marginBottom: 4 }}>
+    <label htmlFor={htmlFor} style={{ fontSize: 12, color: 'var(--p-text-secondary)', marginBottom: 4, display: 'block' }}>
       {children}
-    </p>
+    </label>
   );
 }
 
@@ -33,7 +35,6 @@ const inputStyle: React.CSSProperties = {
   border: '1px solid var(--p-border)',
   borderRadius: 6,
   color: 'var(--p-text)',
-  outline: 'none',
 };
 
 const sectionStyle: React.CSSProperties = {
@@ -44,12 +45,20 @@ const sectionStyle: React.CSSProperties = {
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 export function RightPanel({ scale, activeStep }: Props) {
+  const idBase = useId();
+  const nameId = `${idBase}-scale-name`;
+  const sourceHexId = `${idBase}-source-hex`;
+  const chromaRangeId = `${idBase}-chroma-range`;
+  const lightEndAdjustId = `${idBase}-light-end-adjust`;
+  const darkEndAdjustId = `${idBase}-dark-end-adjust`;
   const updateSourceHex = usePaletteStore((s) => s.updateSourceHex);
   const updateScaleName = usePaletteStore((s) => s.updateScaleName);
   const updateHueShift = usePaletteStore((s) => s.updateHueShift);
   const updateChromaPeak = usePaletteStore((s) => s.updateChromaPeak);
   const setChromaCurveValues = usePaletteStore((s) => s.setChromaCurveValues);
+  const updateCurveSmoothing = usePaletteStore((s) => s.updateCurveSmoothing);
   const removeScale = usePaletteStore((s) => s.removeScale);
+  const contrastMode = usePaletteStore((s) => s.contrastMode);
   const ramp = useGeneratedRamp(scale);
 
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -90,21 +99,26 @@ export function RightPanel({ scale, activeStep }: Props) {
       <div style={sectionStyle}>
         <SectionLabel>Scale</SectionLabel>
 
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel htmlFor={nameId}>Name</FieldLabel>
         <input
+          id={nameId}
+          name="scale-name"
           type="text"
           value={scale.name}
           onChange={(e) => updateScaleName(scale.id, e.target.value)}
           style={inputStyle}
+          className="focus-visible-ring"
+          autoComplete="off"
         />
 
         <div style={{ marginTop: 12 }}>
-          <FieldLabel>Source color</FieldLabel>
+          <FieldLabel htmlFor={sourceHexId}>Source color</FieldLabel>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <input
               type="color"
               value={sourceWithChromaToHex(scale.sourceOklch.l, scale.chromaPeak, scale.sourceOklch.h)}
               onChange={(e) => updateSourceHex(scale.id, e.target.value)}
+              aria-label="Source color picker"
               style={{
                 width: 32,
                 height: 32,
@@ -116,6 +130,8 @@ export function RightPanel({ scale, activeStep }: Props) {
               }}
             />
             <input
+              id={sourceHexId}
+              name="source-hex"
               type="text"
               value={hexDraft}
               onFocus={() => { hexFocused.current = true; }}
@@ -123,6 +139,7 @@ export function RightPanel({ scale, activeStep }: Props) {
               onBlur={commitHex}
               onKeyDown={(e) => { if (e.key === 'Enter') commitHex(); }}
               style={{ ...inputStyle, width: 'auto', flex: 1, fontFamily: 'monospace', fontSize: 12 }}
+              className="focus-visible-ring"
             />
           </div>
           <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--p-text-secondary)', lineHeight: 1.8 }}>
@@ -136,9 +153,10 @@ export function RightPanel({ scale, activeStep }: Props) {
       {/* Chroma */}
       <div style={sectionStyle}>
         <SectionLabel>Chroma</SectionLabel>
-        <FieldLabel>Peak chroma (0 – 0.4)</FieldLabel>
+        <FieldLabel htmlFor={chromaRangeId}>Peak chroma (0 – 0.4)</FieldLabel>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <input
+            id={chromaRangeId}
             type="range"
             min={0}
             max={0.4}
@@ -146,8 +164,10 @@ export function RightPanel({ scale, activeStep }: Props) {
             value={scale.chromaPeak}
             onChange={(e) => updateChromaPeak(scale.id, parseFloat(e.target.value))}
             style={{ flex: 1, accentColor: 'var(--p-accent)' }}
+            aria-label="Peak chroma"
           />
           <input
+            name="peak-chroma"
             type="number"
             min={0}
             max={0.4}
@@ -165,6 +185,8 @@ export function RightPanel({ scale, activeStep }: Props) {
               fontSize: 12,
               padding: '4px 6px',
             }}
+            className="focus-visible-ring"
+            aria-label="Peak chroma numeric value"
           />
         </div>
         <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
@@ -173,6 +195,7 @@ export function RightPanel({ scale, activeStep }: Props) {
               const values = ramp.steps.map((step) => maxSrgbChroma(step.oklch.l, step.oklch.h));
               setChromaCurveValues(scale.id, values);
             }}
+            className="focus-visible-ring"
             style={{
               flex: 1,
               padding: '5px 8px',
@@ -191,6 +214,7 @@ export function RightPanel({ scale, activeStep }: Props) {
               const values = ramp.steps.map((step) => maxP3Chroma(step.oklch.l, step.oklch.h));
               setChromaCurveValues(scale.id, values);
             }}
+            className="focus-visible-ring"
             style={{
               flex: 1,
               padding: '5px 8px',
@@ -207,97 +231,226 @@ export function RightPanel({ scale, activeStep }: Props) {
         </div>
       </div>
 
-      {/* Hue shift */}
+      {/* Curve Smoothing */}
       <div style={sectionStyle}>
-        <SectionLabel>Hue shift</SectionLabel>
+        <SectionLabel>Curve Smoothing</SectionLabel>
         <p style={{ fontSize: 11, color: 'var(--p-text-tertiary)', marginBottom: 10, lineHeight: 1.4 }}>
-          Scales with proximity to nearest RGB primary — closer hues shift less.
+          Blends interior nodes toward a smooth average. Leaf nodes (first/last) are always preserved.
         </p>
         {(
           [
-            { key: 'lightEndAdjust' as const, label: 'Light end', dotColor: 'var(--p-text-secondary)' },
-            { key: 'darkEndAdjust'  as const, label: 'Dark end',  dotColor: 'var(--p-text-tertiary)' },
-          ] as const
-        ).map(({ key, label, dotColor }) => {
-          const adjust = scale.hueShift[key];
-          const autoBase = Math.round(autoHueShiftBase(scale.sourceOklch.h));
-          const effectiveDeg = Math.round(autoBase + adjust);
+            { key: 'lightness' as const, label: 'Lightness', color: '#d97706' },
+            { key: 'chroma'    as const, label: 'Chroma',    color: '#059669' },
+            { key: 'hue'       as const, label: 'Hue',       color: '#7c3aed' },
+          ]
+        ).map(({ key, label, color }) => {
+          const value = scale.curves[key].smoothing ?? 0;
           return (
-            <div key={key} style={{ marginBottom: 10 }}>
+            <label key={key} style={{ display: 'block', marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                <label style={{ fontSize: 12, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: dotColor, display: 'inline-block' }} />
+                <span style={{ fontSize: 12, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: color, display: 'inline-block', flexShrink: 0 }} />
                   {label}
-                </label>
+                </span>
                 <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-tertiary)' }}>
-                  auto {autoBase}° → {effectiveDeg}°
+                  {(value * 100).toFixed(0)}%
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input
-                  type="number"
-                  min={-90}
-                  max={90}
-                  value={adjust}
-                  onChange={(e) => {
-                    const v = Math.max(-90, Math.min(90, parseInt(e.target.value) || 0));
-                    updateHueShift(scale.id, key, v);
-                  }}
-                  style={{
-                    ...inputStyle,
-                    width: 64,
-                    textAlign: 'right',
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                    flexShrink: 0,
-                  }}
-                />
-                <span style={{ fontSize: 11, color: 'var(--p-text-tertiary)' }}>°</span>
-              </div>
-            </div>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={value}
+                onChange={(e) => updateCurveSmoothing(scale.id, key, parseFloat(e.target.value))}
+                style={{ width: '100%', accentColor: color }}
+                aria-label={`${label} smoothing`}
+              />
+            </label>
           );
         })}
+      </div>
+
+      {/* Hue shift */}
+      <div style={sectionStyle}>
+        <SectionLabel>Hue shift</SectionLabel>
+        {(() => {
+          const lightStep = ramp.steps[0];
+          const darkStep = ramp.steps[ramp.steps.length - 1];
+          const primaryNameFor = (p: number) => p === 0 ? 'R' : p === 120 ? 'G' : 'B';
+          const ends = [
+            { key: 'lightEndAdjust' as const, label: 'Light', dotColor: 'var(--p-text-secondary)', stepHue: lightStep?.oklch.h ?? scale.sourceOklch.h },
+            { key: 'darkEndAdjust'  as const, label: 'Dark',  dotColor: 'var(--p-text-tertiary)',  stepHue: darkStep?.oklch.h ?? scale.sourceOklch.h },
+          ] as const;
+          return ends.map(({ key, label, dotColor, stepHue }) => {
+            const adjust = scale.hueShift[key];
+            const primary = nearestPrimary(stepHue);
+            const pName = primaryNameFor(primary);
+            const dist = Math.round(Math.abs(((stepHue - primary + 180) % 360) - 180));
+            const autoBase = Math.round(autoHueShiftBase(stepHue));
+            const effectiveDeg = Math.round(autoBase + adjust);
+            return (
+              <div key={key} style={{ marginBottom: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <label htmlFor={key === 'lightEndAdjust' ? lightEndAdjustId : darkEndAdjustId} style={{ fontSize: 11, color: 'var(--p-text-secondary)', display: 'flex', alignItems: 'center', gap: 4, width: 48, flexShrink: 0 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: dotColor, display: 'inline-block', flexShrink: 0 }} />
+                    {label}
+                  </label>
+                  <input
+                    id={key === 'lightEndAdjust' ? lightEndAdjustId : darkEndAdjustId}
+                    name={key}
+                    type="number"
+                    min={-90}
+                    max={90}
+                    value={adjust}
+                    onChange={(e) => {
+                      const v = Math.max(-90, Math.min(90, parseInt(e.target.value) || 0));
+                      updateHueShift(scale.id, key, v);
+                    }}
+                    style={{
+                      ...inputStyle,
+                      width: 52,
+                      textAlign: 'right',
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      padding: '3px 6px',
+                      flexShrink: 0,
+                    }}
+                    className="focus-visible-ring"
+                  />
+                  <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--p-text-tertiary)', whiteSpace: 'nowrap' }}>
+                    = {effectiveDeg}°
+                  </span>
+                </div>
+                <div style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--p-text-tertiary)', marginTop: 2, paddingLeft: 58 }}>
+                  h {Math.round(stepHue)}° → {pName} ({primary}°) · {dist}° away · auto {autoBase}°
+                </div>
+              </div>
+            );
+          });
+        })()}
       </div>
 
       {/* Active step detail */}
       {activeStep && (
         <div style={sectionStyle}>
-          <SectionLabel>{activeStep.name}</SectionLabel>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <div
+          {/* Step name + gamut badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--p-text-secondary)', margin: 0 }}>
+              {activeStep.name}
+            </p>
+            <span
+              title={activeStep.gamut === 'p3'
+                ? 'Wide-gamut Display P3 color — appears more vivid on supported displays; hex is the sRGB fallback'
+                : 'Standard sRGB color — renders identically on all displays'}
               style={{
-                width: 32,
-                height: 32,
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '1px 5px',
                 borderRadius: 4,
-                backgroundColor: activeStep.hex,
-                border: '1px solid var(--p-border)',
-                flexShrink: 0,
+                background: activeStep.gamut === 'p3' ? '#78350f' : 'var(--p-bg-inset)',
+                color: activeStep.gamut === 'p3' ? '#fde68a' : 'var(--p-text-secondary)',
+                letterSpacing: '0.03em',
+                cursor: 'default',
               }}
-            />
-            <span style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--p-text)' }}>
-              {activeStep.hex}
+            >
+              {activeStep.gamut === 'p3' ? 'P3' : 'sRGB'}
             </span>
+          </div>
+
+          {/* Swatches */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0 }}>
+              <div
+                style={{ width: 32, height: activeStep.gamut === 'p3' ? 13 : 32, borderRadius: 3, backgroundColor: activeStep.hex, border: '1px solid var(--p-border)' }}
+                title="sRGB hex — safe fallback for all displays"
+              />
+              {activeStep.gamut === 'p3' && activeStep.displayP3 && (
+                <div
+                  style={{ width: 32, height: 13, borderRadius: 3, backgroundColor: supportsP3 ? activeStep.displayP3 : activeStep.hex, border: '1px solid var(--p-border)' }}
+                  title="Display P3 — wide-gamut rendering on supported displays"
+                />
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {/* Hex row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 }}>
+                <span style={{ fontSize: 10, color: 'var(--p-text-secondary)', flexShrink: 0 }}>
+                  Hex (sRGB)
+                </span>
+                <button
+                  aria-label={`Copy hex value ${activeStep.hex}`}
+                  className="focus-visible-ring copyable-value"
+                  style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--p-text)', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
+                  title="Click to copy"
+                  onClick={() => navigator.clipboard?.writeText(activeStep.hex)?.catch(() => {})}
+                >
+                  {activeStep.hex}
+                </button>
+              </div>
+              {/* Display P3 row */}
+              {activeStep.gamut === 'p3' && activeStep.displayP3 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 4 }}>
+                  <span style={{ fontSize: 10, color: 'var(--p-text-secondary)', flexShrink: 0 }}>
+                    Display P3
+                  </span>
+                  <button
+                    aria-label={`Copy Display P3 value ${activeStep.displayP3}`}
+                    className="focus-visible-ring copyable-value"
+                    style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--p-text)', cursor: 'pointer', textAlign: 'right', wordBreak: 'break-all', background: 'none', border: 'none', padding: 0 }}
+                    title="Click to copy"
+                    onClick={() => navigator.clipboard?.writeText(activeStep.displayP3!)?.catch(() => {})}
+                  >
+                    {activeStep.displayP3}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* OKLCH */}
+          <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--p-text-tertiary)', marginBottom: 3 }}>
+            OKLCH
           </div>
           <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--p-text-secondary)', lineHeight: 1.8, marginBottom: 8 }}>
             <div>L {activeStep.oklch.l.toFixed(4)}</div>
             <div>C {activeStep.oklch.c.toFixed(4)}</div>
             <div>H {activeStep.oklch.h.toFixed(2)}°</div>
           </div>
+
+          {/* Contrast */}
           <div style={{ fontSize: 12, color: 'var(--p-text-secondary)' }}>
-            {[['#ffffff', 'on white'] as const, ['#000000', 'on black'] as const].map(([bg, label]) => {
-              const c = getContrast(activeStep.hex, bg);
-              return (
-                <div key={bg} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                  <span>{label}</span>
-                  <span style={{ fontFamily: 'monospace', color: 'var(--p-text)' }}>
-                    {c.ratio.toFixed(2)}
-                    <span style={{ marginLeft: 6, fontSize: 10, color: c.level === 'fail' ? 'var(--p-danger)' : 'var(--p-success)', fontWeight: 600 }}>
-                      {c.level === 'fail' ? 'Fail' : c.level}
-                    </span>
-                  </span>
-                </div>
-              );
-            })}
+            {contrastMode === 'apca'
+              ? [['#ffffff', 'on white'] as const, ['#000000', 'on black'] as const].map(([bg, label]) => {
+                  const lc = getApcaContrast(activeStep.hex, bg);
+                  const absLc = Math.abs(lc);
+                  const passing = absLc >= 45;
+                  return (
+                    <div key={bg} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                      <span>{label}</span>
+                      <span style={{ fontFamily: 'monospace', color: 'var(--p-text)' }}>
+                        Lc {lc.toFixed(1)}
+                        <span style={{ marginLeft: 6, fontSize: 10, color: passing ? 'var(--p-success)' : 'var(--p-danger)', fontWeight: 600 }}>
+                          {absLc >= 75 ? '75+' : absLc >= 60 ? '60+' : absLc >= 45 ? '45+' : 'Fail'}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })
+              : [['#ffffff', 'on white'] as const, ['#000000', 'on black'] as const].map(([bg, label]) => {
+                  const c = getContrast(activeStep.hex, bg);
+                  return (
+                    <div key={bg} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                      <span>{label}</span>
+                      <span style={{ fontFamily: 'monospace', color: 'var(--p-text)' }}>
+                        {c.ratio.toFixed(2)}
+                        <span style={{ marginLeft: 6, fontSize: 10, color: c.level === 'fail' ? 'var(--p-danger)' : 'var(--p-success)', fontWeight: 600 }}>
+                          {c.level === 'fail' ? 'Fail' : c.level}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
           </div>
         </div>
       )}
@@ -308,6 +461,7 @@ export function RightPanel({ scale, activeStep }: Props) {
         {!confirmDelete ? (
           <button
             onClick={() => setConfirmDelete(true)}
+            className="focus-visible-ring"
             style={{
               width: '100%',
               padding: '5px 8px',
@@ -329,6 +483,7 @@ export function RightPanel({ scale, activeStep }: Props) {
             <div style={{ display: 'flex', gap: 6 }}>
               <button
                 onClick={() => removeScale(scale.id)}
+                className="focus-visible-ring"
                 style={{
                   flex: 1,
                   padding: '5px 8px',
@@ -345,6 +500,7 @@ export function RightPanel({ scale, activeStep }: Props) {
               </button>
               <button
                 onClick={() => setConfirmDelete(false)}
+                className="focus-visible-ring"
                 style={{
                   flex: 1,
                   padding: '5px 8px',

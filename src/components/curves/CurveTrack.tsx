@@ -31,6 +31,7 @@ export function CurveTrack({ label, values, min, max, step = 0.001, previewColor
               className="w-full cursor-pointer"
               style={{ writingMode: 'vertical-lr', direction: 'rtl', height: '80px', width: '100%', accentColor: 'var(--p-accent)' }}
               title={`Step ${i + 1}: ${val.toFixed(3)}`}
+              aria-label={`${label} step ${i + 1}`}
             />
           </div>
         ))}
