@@ -54,6 +54,7 @@ interface PaletteActions {
   undo: () => void;
   redo: () => void;
   beginCurveEdit: (id: string) => void;
+  commitCurveEdit: () => void;
   // Duplicate
   duplicateScale: (id: string) => void;
   // Bulk select
@@ -61,6 +62,25 @@ interface PaletteActions {
   selectAllScales: () => void;
   clearSelection: () => void;
   removeSelectedScales: () => void;
+}
+
+interface InternalState {
+  _past: HistorySnapshot[];
+  _future: HistorySnapshot[];
+  selectedScaleIds: string[];
+  _isCurveEditing: boolean;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function pushHistory(state: any) {
+  if (state._isCurveEditing) return;
+  const snapshot: HistorySnapshot = {
+    scales: current(state.scales) as ColorScale[],
+    activeScaleId: state.activeScaleId,
+  };
+  state._past.push(snapshot);
+  if (state._past.length > 100) state._past.shift();
+  state._future = [];
 }
 
 const DEFAULT_HEX = '#1894f8';
@@ -252,6 +272,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
     _past: [] as HistorySnapshot[],
     _future: [] as HistorySnapshot[],
     selectedScaleIds: [] as string[],
+    _isCurveEditing: false,
 
     toggleSrgbPreview: () => set((state) => { state.srgbPreview = !state.srgbPreview; }),
 
@@ -387,12 +408,14 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
     updateCurveValue: (id, channel, stepIndex, value) => set((state) => {
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
+      pushHistory(state);
       scale.curves[channel].values[stepIndex] = value;
     }),
 
     updateCurveValues: (id, channel, values) => set((state) => {
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
+      pushHistory(state);
       const curve = scale.curves[channel];
       const targetLength = scale.stepCount;
       const nextValues = values.slice(0, targetLength);
@@ -416,6 +439,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
     updateCurveNodeType: (id, channel, stepIndex, type) => set((state) => {
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
+      pushHistory(state);
       const curve = scale.curves[channel];
       curve.nodeTypes = Array.from(
         { length: curve.values.length },
@@ -541,7 +565,6 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
     }),
 
     updateHueShift: (id, end, value) => set((state) => {
-      pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (scale) scale.hueShift[end] = value;
     }),
@@ -559,7 +582,6 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
     }),
 
     updateChromaPeak: (id, peak) => set((state) => {
-      pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       const clamped = Math.max(0, Math.min(0.4, peak));
@@ -671,6 +693,11 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
 
     beginCurveEdit: (_id: string) => set((state) => {
       pushHistory(state);
+      state._isCurveEditing = true;
+    }),
+
+    commitCurveEdit: () => set((state) => {
+      state._isCurveEditing = false;
     }),
 
     duplicateScale: (id) => set((state) => {

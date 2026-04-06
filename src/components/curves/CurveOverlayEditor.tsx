@@ -60,6 +60,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
   const updateCurveNodeType = usePaletteStore((s) => s.updateCurveNodeType);
   const srgbPreview = usePaletteStore((s) => s.srgbPreview);
   const beginCurveEdit = usePaletteStore((s) => s.beginCurveEdit);
+  const commitCurveEdit = usePaletteStore((s) => s.commitCurveEdit);
   const containerRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef(scale);
   useEffect(() => { scaleRef.current = scale; }, [scale]);
@@ -144,10 +145,11 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
 
   // ─── Pointer up ───────────────────────────────────────────────────────────
   const handlePointerUp = useCallback(() => {
+    commitCurveEdit();
     setDragState(null);
     setPreCancel(null);
     document.body.style.cursor = '';
-  }, []);
+  }, [commitCurveEdit]);
 
   // ─── Escape cancels drag ──────────────────────────────────────────────────
   useEffect(() => {
@@ -155,6 +157,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && preCancel) {
         updateCurveValues(scaleRef.current.id, preCancel.key, preCancel.values);
+        commitCurveEdit();
         setDragState(null);
         setPreCancel(null);
         document.body.style.cursor = '';
@@ -162,7 +165,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [dragState, preCancel, updateCurveValues]);
+  }, [dragState, preCancel, updateCurveValues, commitCurveEdit]);
 
   useEffect(() => {
     if (!dragState) return;
@@ -329,6 +332,7 @@ export function CurveOverlayEditor({ scale, ramp, activeStepIndex, onStepClick }
                   onPointerDown={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    beginCurveEdit(scale.id);
                     setPreCancel({ key: curve.key, values: rawValues.slice() });
                     setDragState({
                       curveKey: curve.key,

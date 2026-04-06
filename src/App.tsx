@@ -50,6 +50,24 @@ export default function App() {
   const scales = usePaletteStore((s) => s.scales);
   const srgbPreview = usePaletteStore((s) => s.srgbPreview);
   const toggleSrgbPreview = usePaletteStore((s) => s.toggleSrgbPreview);
+  const undo = usePaletteStore((s) => s.undo);
+  const redo = usePaletteStore((s) => s.redo);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        redo();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
 
   async function handleSave() {
     setSaveStatus('saving');
