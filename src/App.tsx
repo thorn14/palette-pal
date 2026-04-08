@@ -54,11 +54,12 @@ export default function App() {
   async function handleSave() {
     setSaveStatus('saving');
     try {
+      usePaletteStore.getState().flushCurrentPalette();
       const state = usePaletteStore.getState();
       const payload = {
-        version: 1,
-        activeScaleId: state.activeScaleId,
-        scales: state.scales,
+        version: 2,
+        activePaletteId: state.activePaletteId,
+        palettes: state.savedPalettes,
       };
       const res = await fetch('/__save-color-tokens', {
         method: 'POST',

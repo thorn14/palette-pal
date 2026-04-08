@@ -3,6 +3,131 @@ import { usePaletteStore, selectActiveScale } from '../../store/paletteStore';
 import { LIGHTNESS_PRESET_OPTIONS, type LightnessPreset } from '../../constants/stepPresets';
 import type { StepNamingPreset } from '../../types/palette';
 
+function PaletteSelector() {
+  const savedPalettes = usePaletteStore((s) => s.savedPalettes);
+  const activePaletteId = usePaletteStore((s) => s.activePaletteId);
+  const currentPaletteName = usePaletteStore((s) => s.currentPaletteName);
+  const switchPalette = usePaletteStore((s) => s.switchPalette);
+  const createPalette = usePaletteStore((s) => s.createPalette);
+  const deletePalette = usePaletteStore((s) => s.deletePalette);
+  const renamePalette = usePaletteStore((s) => s.renamePalette);
+
+  const [nameValue, setNameValue] = useState(currentPaletteName);
+  useEffect(() => { setNameValue(currentPaletteName); }, [currentPaletteName]);
+
+  function commitRename() {
+    const trimmed = nameValue.trim();
+    if (activePaletteId && trimmed) {
+      renamePalette(activePaletteId, trimmed);
+    } else {
+      setNameValue(currentPaletteName);
+    }
+  }
+
+  function handleCreatePalette() {
+    const name = `Palette ${savedPalettes.length + 1}`;
+    createPalette(name);
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+      <input
+        aria-label="Palette name"
+        value={nameValue}
+        onChange={(e) => setNameValue(e.target.value)}
+        onBlur={commitRename}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { commitRename(); (e.target as HTMLInputElement).blur(); }
+          if (e.key === 'Escape') { setNameValue(currentPaletteName); (e.target as HTMLInputElement).blur(); }
+        }}
+        className="focus-visible-ring"
+        style={{
+          padding: '3px 6px',
+          fontSize: 12,
+          fontWeight: 500,
+          background: 'var(--p-bg)',
+          border: '1px solid var(--p-border)',
+          borderRadius: 5,
+          color: 'var(--p-text)',
+          outline: 'none',
+          width: 110,
+        }}
+      />
+      {savedPalettes.length > 1 && (
+        <select
+          aria-label="Switch palette"
+          value={activePaletteId ?? ''}
+          onChange={(e) => switchPalette(e.target.value)}
+          className="focus-visible-ring"
+          style={{
+            padding: '3px 4px',
+            fontSize: 11,
+            background: 'var(--p-bg)',
+            border: '1px solid var(--p-border)',
+            borderRadius: 5,
+            color: 'var(--p-text-secondary)',
+            cursor: 'pointer',
+            outline: 'none',
+            maxWidth: 90,
+          }}
+        >
+          {savedPalettes.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+      )}
+      <button
+        onClick={handleCreatePalette}
+        title="New palette"
+        aria-label="New palette"
+        className="focus-visible-ring"
+        style={{
+          width: 24,
+          height: 24,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--p-bg)',
+          border: '1px solid var(--p-border)',
+          borderRadius: 5,
+          cursor: 'pointer',
+          color: 'var(--p-text-secondary)',
+          fontSize: 16,
+          lineHeight: 1,
+          flexShrink: 0,
+        }}
+      >
+        +
+      </button>
+      {savedPalettes.length > 1 && activePaletteId && (
+        <button
+          onClick={() => deletePalette(activePaletteId)}
+          title="Delete palette"
+          aria-label="Delete current palette"
+          className="focus-visible-ring"
+          style={{
+            width: 24,
+            height: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'var(--p-bg)',
+            border: '1px solid var(--p-border)',
+            borderRadius: 5,
+            cursor: 'pointer',
+            color: 'var(--p-text-tertiary)',
+            flexShrink: 0,
+          }}
+        >
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
+            <path d="M2 3h8M5 3V2h2v1M4.5 3v6.5h3V3" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
 type AppMode = 'edit' | 'preview' | 'combos';
 type AppTheme = 'light' | 'dark';
 
@@ -169,6 +294,11 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
         </svg>
         <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--p-text)' }}>palette-pal</span>
       </div>
+
+      {divider}
+
+      {/* Palette selector */}
+      <PaletteSelector />
 
       {divider}
 
