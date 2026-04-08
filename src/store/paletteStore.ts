@@ -44,6 +44,7 @@ interface PaletteActions {
   bulkCreateScales: (scales: Array<{ sourceHex: string; name: string }>, namingPreset: StepNamingPreset, lightnessPreset: LightnessPreset) => void;
   importScales: (imported: ImportedScale[], replace: boolean) => void;
   toggleSrgbPreview: () => void;
+  toggleScaleLock: (id: string) => void;
 }
 
 const DEFAULT_HEX = '#1894f8';
@@ -207,6 +208,7 @@ function inflateScale(partial: Partial<ColorScale>, fallbackName: string): Color
     },
     lightnessPreset: (partial.lightnessPreset as LightnessPreset) ?? (partial.curves?.lightness ? 'custom' : 'tailwind'),
     chromaPeak: partial.chromaPeak ?? sourceOklch.c,
+    lockedFromOverrides: !!partial.lockedFromOverrides,
   };
 }
 
@@ -234,6 +236,11 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
     ...loadInitialState(),
 
     toggleSrgbPreview: () => set((state) => { state.srgbPreview = !state.srgbPreview; }),
+
+    toggleScaleLock: (id) => set((state) => {
+      const scale = state.scales.find((s) => s.id === id);
+      if (scale) scale.lockedFromOverrides = !scale.lockedFromOverrides;
+    }),
 
     addScale: (sourceHex, name) => set((state) => {
       const scale = makeDefaultScale(sourceHex, name ?? `Color ${state.scales.length + 1}`);
@@ -304,7 +311,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
 
     updateStepNamingAll: (naming) => set((state) => {
       for (const scale of state.scales) {
-        scale.naming = naming;
+        if (!scale.lockedFromOverrides) scale.naming = naming;
       }
     }),
 
@@ -447,6 +454,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
       const cleaned = names.map((n) => n.trim()).filter(Boolean);
       if (!cleaned.length) return;
       for (const scale of state.scales) {
+        if (scale.lockedFromOverrides) continue;
         scale.naming = { preset: 'custom', customNames: cleaned };
         scale.stepCount = cleaned.length;
         scale.curves.lightness.values = resampleCurve(scale.curves.lightness.values, cleaned.length);
@@ -500,6 +508,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions>()(
       const cleaned = values.length ? values.map((v) => Math.max(0, Math.min(1, v))) : [];
       if (!cleaned.length) return;
       for (const scale of state.scales) {
+        if (scale.lockedFromOverrides) continue;
         scale.curves.lightness.values = resampleCurve(cleaned, scale.stepCount);
         scale.lightnessPreset = 'custom';
       }
