@@ -26,3 +26,4 @@ CLAUDE.md
 *.sln
 *.sw?
 .tool-versions
+package-lock.json

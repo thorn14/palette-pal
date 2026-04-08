@@ -7,6 +7,8 @@ interface Props {
 
 export function HueShiftControls({ scale }: Props) {
   const updateHueShift = usePaletteStore((s) => s.updateHueShift);
+  const beginCurveEdit = usePaletteStore((s) => s.beginCurveEdit);
+  const commitCurveEdit = usePaletteStore((s) => s.commitCurveEdit);
   const lightEndId = `hue-shift-light-${scale.id}`;
   const darkEndId = `hue-shift-dark-${scale.id}`;
 
@@ -22,7 +24,9 @@ export function HueShiftControls({ scale }: Props) {
           min={0}
           max={100}
           value={scale.hueShift.lightEndAdjust}
+          onPointerDown={() => beginCurveEdit(scale.id)}
           onChange={(e) => updateHueShift(scale.id, 'lightEndAdjust', parseInt(e.target.value))}
+          onPointerUp={() => commitCurveEdit()}
           className="w-full"
           style={{ accentColor: 'var(--p-accent)' }}
         />
@@ -37,7 +41,9 @@ export function HueShiftControls({ scale }: Props) {
           min={0}
           max={100}
           value={scale.hueShift.darkEndAdjust}
+          onPointerDown={() => beginCurveEdit(scale.id)}
           onChange={(e) => updateHueShift(scale.id, 'darkEndAdjust', parseInt(e.target.value))}
+          onPointerUp={() => commitCurveEdit()}
           className="w-full"
           style={{ accentColor: 'var(--p-accent)' }}
         />

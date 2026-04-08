@@ -58,6 +58,8 @@ export function RightPanel({ scale, activeStep }: Props) {
   const updateChromaPeak = usePaletteStore((s) => s.updateChromaPeak);
   const setChromaCurveValues = usePaletteStore((s) => s.setChromaCurveValues);
   const updateCurveSmoothing = usePaletteStore((s) => s.updateCurveSmoothing);
+  const beginCurveEdit = usePaletteStore((s) => s.beginCurveEdit);
+  const commitCurveEdit = usePaletteStore((s) => s.commitCurveEdit);
   const removeScale = usePaletteStore((s) => s.removeScale);
   const toggleScaleLock = usePaletteStore((s) => s.toggleScaleLock);
   const contrastMode = usePaletteStore((s) => s.contrastMode);
@@ -186,7 +188,9 @@ export function RightPanel({ scale, activeStep }: Props) {
             max={0.4}
             step={0.001}
             value={scale.chromaPeak}
+            onPointerDown={() => beginCurveEdit(scale.id)}
             onChange={(e) => updateChromaPeak(scale.id, parseFloat(e.target.value))}
+            onPointerUp={() => commitCurveEdit()}
             style={{ flex: 1, accentColor: 'var(--p-accent)' }}
             aria-label="Peak chroma"
           />
@@ -286,7 +290,9 @@ export function RightPanel({ scale, activeStep }: Props) {
                 max={1}
                 step={0.01}
                 value={value}
+                onPointerDown={() => beginCurveEdit(scale.id)}
                 onChange={(e) => updateCurveSmoothing(scale.id, key, parseFloat(e.target.value))}
+                onPointerUp={() => commitCurveEdit()}
                 style={{ width: '100%', accentColor: color }}
                 aria-label={`${label} smoothing`}
               />
