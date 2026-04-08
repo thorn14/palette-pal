@@ -208,6 +208,7 @@ function inflateScale(partial: Partial<ColorScale>, fallbackName: string): Color
     },
     lightnessPreset: (partial.lightnessPreset as LightnessPreset) ?? (partial.curves?.lightness ? 'custom' : 'tailwind'),
     chromaPeak: partial.chromaPeak ?? sourceOklch.c,
+    lockedFromOverrides: !!partial.lockedFromOverrides,
   };
 }
 

@@ -2,23 +2,7 @@ import { useState } from 'react';
 import { usePaletteStore } from '../../store/paletteStore';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import type { ColorScale } from '../../types/palette';
-
-function LockIcon({ locked }: { locked?: boolean }) {
-  return locked ? (
-    <svg width="11" height="13" viewBox="0 0 11 13" fill="currentColor" aria-hidden="true" style={{ display: 'block' }}>
-      {/* Closed lock */}
-      <rect x="1.5" y="5.5" width="8" height="6.5" rx="1.5" />
-      <path d="M3 5.5V3.5a2.5 2.5 0 0 1 5 0v2" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-      <circle cx="5.5" cy="8.75" r="1" fill="var(--p-bg-subtle)" />
-    </svg>
-  ) : (
-    <svg width="11" height="13" viewBox="0 0 11 13" fill="currentColor" aria-hidden="true" style={{ display: 'block' }}>
-      {/* Open lock */}
-      <rect x="1.5" y="5.5" width="8" height="6.5" rx="1.5" />
-      <path d="M3 5.5V3.5a2.5 2.5 0 0 1 5 0" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-    </svg>
-  );
-}
+import { LockIcon } from '../icons/LockIcon';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -64,96 +48,108 @@ function ScaleItem({
   const srgbPreview = usePaletteStore((s) => s.srgbPreview);
 
   return (
-    <button
-      type="button"
-      draggable
-      onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart(); }}
-      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver(); }}
-      onDrop={(e) => { e.preventDefault(); onDrop(); }}
-      onDragEnd={onDragEnd}
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.altKey && e.key === 'ArrowUp') {
-          e.preventDefault();
-          onMoveUp();
-        }
-        if (e.altKey && e.key === 'ArrowDown') {
-          e.preventDefault();
-          onMoveDown();
-        }
-      }}
-      aria-pressed={isActive}
-      aria-label={`${scale.name}. Press Enter to select. Press Option and Arrow keys to reorder.`}
-      className="focus-visible-ring"
+    <div
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 4,
-        padding: '8px 8px 8px 4px',
+        gap: 0,
         borderRadius: 6,
         background: isActive ? 'var(--p-bg-inset)' : 'transparent',
         border: `1px solid ${isActive ? 'var(--p-border)' : 'transparent'}`,
         opacity: isDragging ? 0.35 : 1,
-        cursor: 'grab',
         transition: 'opacity 0.1s',
-        userSelect: 'none',
-        width: '100%',
-        textAlign: 'left',
       }}
     >
-      {/* Grip handle */}
-      <div style={{ color: 'var(--p-text-tertiary)', flexShrink: 0, padding: '0 2px', lineHeight: 0 }}>
-        <GripIcon />
-      </div>
-
-      {/* Name + mini ramp */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <span
-          style={{
-            fontSize: 12,
-            fontWeight: isActive ? 600 : 400,
-            color: isActive ? 'var(--p-text)' : 'var(--p-text-secondary)',
-            marginBottom: 5,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: 'block',
-          }}
-        >
-          {scale.name}
-        </span>
-        <div style={{ display: 'flex', height: 16, borderRadius: 3, overflow: 'hidden' }}>
-          {ramp.steps.map((step) => (
-            <div
-              key={step.name}
-              style={{ flex: 1, backgroundColor: (!srgbPreview && supportsP3 && step.displayP3) || step.hex }}
-            />
-          ))}
+      <button
+        type="button"
+        draggable
+        onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart(); }}
+        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver(); }}
+        onDrop={(e) => { e.preventDefault(); onDrop(); }}
+        onDragEnd={onDragEnd}
+        onClick={onClick}
+        onKeyDown={(e) => {
+          if (e.altKey && e.key === 'ArrowUp') {
+            e.preventDefault();
+            onMoveUp();
+          }
+          if (e.altKey && e.key === 'ArrowDown') {
+            e.preventDefault();
+            onMoveDown();
+          }
+        }}
+        aria-pressed={isActive}
+        aria-label={`${scale.name}. Press Enter to select. Press Option and Arrow keys to reorder.`}
+        className="focus-visible-ring"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          padding: '8px 8px 8px 4px',
+          borderRadius: 6,
+          background: 'transparent',
+          border: 'none',
+          cursor: 'grab',
+          userSelect: 'none',
+          flex: 1,
+          textAlign: 'left',
+        }}
+      >
+        {/* Grip handle */}
+        <div style={{ color: 'var(--p-text-tertiary)', flexShrink: 0, padding: '0 2px', lineHeight: 0 }}>
+          <GripIcon />
         </div>
-      </div>
+
+        {/* Name + mini ramp */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: isActive ? 600 : 400,
+              color: isActive ? 'var(--p-text)' : 'var(--p-text-secondary)',
+              marginBottom: 5,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: 'block',
+            }}
+          >
+            {scale.name}
+          </span>
+          <div style={{ display: 'flex', height: 16, borderRadius: 3, overflow: 'hidden' }}>
+            {ramp.steps.map((step) => (
+              <div
+                key={step.name}
+                style={{ flex: 1, backgroundColor: (!srgbPreview && supportsP3 && step.displayP3) || step.hex }}
+              />
+            ))}
+          </div>
+        </div>
+      </button>
 
       {/* Lock toggle */}
-      <span
-        role="button"
+      <button
+        type="button"
         aria-label={scale.lockedFromOverrides ? 'Unlock from overrides' : 'Lock from overrides'}
         title={scale.lockedFromOverrides ? 'Locked — click to unlock' : 'Click to lock from global overrides'}
         onClick={(e) => { e.stopPropagation(); onToggleLock(); }}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onToggleLock(); } }}
-        tabIndex={0}
+        className="focus-visible-ring"
         style={{
           flexShrink: 0,
           color: scale.lockedFromOverrides ? 'var(--p-accent)' : 'var(--p-text-tertiary)',
           opacity: scale.lockedFromOverrides ? 1 : 0.45,
           cursor: 'pointer',
           lineHeight: 0,
-          padding: '0 2px',
+          padding: '8px 8px 8px 0',
           display: 'flex',
           alignItems: 'center',
+          background: 'none',
+          border: 'none',
         }}
       >
         <LockIcon locked={scale.lockedFromOverrides} />
-      </span>
-    </button>
+      </button>
+    </div>
   );
 }
 
