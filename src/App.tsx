@@ -54,13 +54,25 @@ export default function App() {
   const redo = usePaletteStore((s) => s.redo);
 
   useEffect(() => {
+    function isEditableTarget(target: EventTarget | null): boolean {
+      if (!(target instanceof HTMLElement)) return false;
+      const tagName = target.tagName.toLowerCase();
+      return (
+        target.isContentEditable ||
+        tagName === 'textarea' ||
+        (tagName === 'input' && !target.hasAttribute('readonly'))
+      );
+    }
+
     function handleKeyDown(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
-      if (!mod) return;
-      if (e.key === 'z' && !e.shiftKey) {
+      if (!mod || isEditableTarget(e.target)) return;
+
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) {
         e.preventDefault();
         undo();
-      } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+      } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
         e.preventDefault();
         redo();
       }

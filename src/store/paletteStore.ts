@@ -17,6 +17,7 @@ function uid(): string {
 interface HistorySnapshot {
   scales: ColorScale[];
   activeScaleId: string | null;
+  selectedScaleIds: string[];
 }
 
 interface PaletteActions {
@@ -77,6 +78,7 @@ function pushHistory(state: any) {
   const snapshot: HistorySnapshot = {
     scales: current(state.scales) as ColorScale[],
     activeScaleId: state.activeScaleId,
+    selectedScaleIds: state.selectedScaleIds.slice(),
   };
   state._past.push(snapshot);
   if (state._past.length > 100) state._past.shift();
@@ -297,6 +299,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
     removeScale: (id) => set((state) => {
       pushHistory(state);
       state.scales = state.scales.filter((s) => s.id !== id);
+      state.selectedScaleIds = state.selectedScaleIds.filter((sid) => sid !== id);
       if (state.activeScaleId === id) {
         state.activeScaleId = state.scales[0]?.id ?? null;
       }
@@ -338,9 +341,10 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
     }),
 
     updateScaleName: (id, name) => set((state) => {
-      pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
-      if (scale) scale.name = name;
+      if (!scale) return;
+      pushHistory(state);
+      scale.name = name;
     }),
 
     updateStepNaming: (id, naming) => set((state) => {
@@ -451,6 +455,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
     updateCurveSmoothing: (id, channel, amount) => set((state) => {
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
+      pushHistory(state);
       scale.curves[channel].smoothing = Math.max(0, Math.min(1, amount));
     }),
 
@@ -566,7 +571,9 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
 
     updateHueShift: (id, end, value) => set((state) => {
       const scale = state.scales.find((s) => s.id === id);
-      if (scale) scale.hueShift[end] = value;
+      if (!scale) return;
+      pushHistory(state);
+      scale.hueShift[end] = value;
     }),
 
     applyLightnessPreset: (id, preset) => set((state) => {
@@ -584,6 +591,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
     updateChromaPeak: (id, peak) => set((state) => {
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
+      pushHistory(state);
       const clamped = Math.max(0, Math.min(0.4, peak));
       scale.chromaPeak = clamped;
       scale.curves.chroma.values = buildChromaCurve(clamped, scale.stepCount);
@@ -673,10 +681,13 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       state._future.push({
         scales: current(state.scales) as ColorScale[],
         activeScaleId: state.activeScaleId,
+        selectedScaleIds: state.selectedScaleIds.slice(),
       });
+      if (state._future.length > 100) state._future.shift();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       state.scales = snapshot.scales as any;
       state.activeScaleId = snapshot.activeScaleId;
+      state.selectedScaleIds = snapshot.selectedScaleIds.slice();
     }),
 
     redo: () => set((state) => {
@@ -685,13 +696,17 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       state._past.push({
         scales: current(state.scales) as ColorScale[],
         activeScaleId: state.activeScaleId,
+        selectedScaleIds: state.selectedScaleIds.slice(),
       });
+      if (state._past.length > 100) state._past.shift();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       state.scales = snapshot.scales as any;
       state.activeScaleId = snapshot.activeScaleId;
+      state.selectedScaleIds = snapshot.selectedScaleIds.slice();
     }),
 
-    beginCurveEdit: (_id: string) => set((state) => {
+    beginCurveEdit: (scaleId: string) => set((state) => {
+      void scaleId;
       pushHistory(state);
       state._isCurveEditing = true;
     }),
@@ -710,9 +725,21 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
         id: uid(),
         name: `${plain.name} (copy)`,
         curves: {
-          lightness: { values: plain.curves.lightness.values.slice() },
-          chroma: { values: plain.curves.chroma.values.slice() },
-          hue: { values: plain.curves.hue.values.slice() },
+          lightness: {
+            values: plain.curves.lightness.values.slice(),
+            ...(plain.curves.lightness.nodeTypes && { nodeTypes: plain.curves.lightness.nodeTypes.slice() }),
+            ...(typeof plain.curves.lightness.smoothing === 'number' && { smoothing: plain.curves.lightness.smoothing }),
+          },
+          chroma: {
+            values: plain.curves.chroma.values.slice(),
+            ...(plain.curves.chroma.nodeTypes && { nodeTypes: plain.curves.chroma.nodeTypes.slice() }),
+            ...(typeof plain.curves.chroma.smoothing === 'number' && { smoothing: plain.curves.chroma.smoothing }),
+          },
+          hue: {
+            values: plain.curves.hue.values.slice(),
+            ...(plain.curves.hue.nodeTypes && { nodeTypes: plain.curves.hue.nodeTypes.slice() }),
+            ...(typeof plain.curves.hue.smoothing === 'number' && { smoothing: plain.curves.hue.smoothing }),
+          },
         },
       };
       const idx = state.scales.findIndex((s) => s.id === id);

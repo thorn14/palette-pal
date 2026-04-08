@@ -61,8 +61,7 @@ function ScaleItem({
   const srgbPreview = usePaletteStore((s) => s.srgbPreview);
 
   return (
-    <button
-      type="button"
+    <div
       draggable
       onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart(); }}
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver(); }}
@@ -72,6 +71,10 @@ function ScaleItem({
       onMouseLeave={() => setHovered(false)}
       onClick={onClick}
       onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
         if (e.altKey && e.key === 'ArrowUp') {
           e.preventDefault();
           onMoveUp();
@@ -81,6 +84,8 @@ function ScaleItem({
           onMoveDown();
         }
       }}
+      role="button"
+      tabIndex={0}
       aria-pressed={isActive}
       aria-label={`${scale.name}. Press Enter to select. Press Option and Arrow keys to reorder.`}
       className="focus-visible-ring"
@@ -108,6 +113,10 @@ function ScaleItem({
       {/* Checkbox */}
       <div
         onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onToggleSelect(); } }}
+        role="checkbox"
+        aria-checked={isSelected}
+        tabIndex={0}
         style={{
           flexShrink: 0,
           width: 14,
@@ -119,13 +128,12 @@ function ScaleItem({
           transition: 'opacity 0.1s',
         }}
       >
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={onToggleSelect}
-          onClick={(e) => e.stopPropagation()}
-          style={{ width: 12, height: 12, cursor: 'pointer', margin: 0, accentColor: 'var(--p-accent, #6366f1)' }}
-        />
+        <svg width="12" height="12" viewBox="0 0 12 12" style={{ display: 'block' }}>
+          <rect x="0.5" y="0.5" width="11" height="11" rx="2" fill="none" stroke="var(--p-text-tertiary)" strokeWidth="1" />
+          {isSelected && (
+            <path d="M2.5 6L5 8.5L9.5 3.5" fill="none" stroke="var(--p-accent, #6366f1)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          )}
+        </svg>
       </div>
 
       {/* Grip handle */}
@@ -161,6 +169,7 @@ function ScaleItem({
 
       {/* Duplicate button */}
       <button
+        type="button"
         onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
         title="Duplicate scale"
         style={{
@@ -184,7 +193,7 @@ function ScaleItem({
       >
         <DuplicateIcon />
       </button>
-    </button>
+    </div>
   );
 }
 
