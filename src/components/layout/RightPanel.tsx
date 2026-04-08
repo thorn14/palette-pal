@@ -58,6 +58,7 @@ export function RightPanel({ scale, activeStep }: Props) {
   const setChromaCurveValues = usePaletteStore((s) => s.setChromaCurveValues);
   const updateCurveSmoothing = usePaletteStore((s) => s.updateCurveSmoothing);
   const removeScale = usePaletteStore((s) => s.removeScale);
+  const toggleScaleLock = usePaletteStore((s) => s.toggleScaleLock);
   const contrastMode = usePaletteStore((s) => s.contrastMode);
   const ramp = useGeneratedRamp(scale);
 
@@ -110,6 +111,39 @@ export function RightPanel({ scale, activeStep }: Props) {
           className="focus-visible-ring"
           autoComplete="off"
         />
+
+        <button
+          type="button"
+          onClick={() => toggleScaleLock(scale.id)}
+          title={scale.lockedFromOverrides ? 'Unlock from global overrides' : 'Lock from global overrides'}
+          className="focus-visible-ring"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            marginTop: 8,
+            padding: '4px 0',
+            fontSize: 12,
+            color: scale.lockedFromOverrides ? 'var(--p-accent)' : 'var(--p-text-secondary)',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          {scale.lockedFromOverrides ? (
+            <svg width="11" height="13" viewBox="0 0 11 13" fill="currentColor" aria-hidden="true" style={{ display: 'block', flexShrink: 0 }}>
+              <rect x="1.5" y="5.5" width="8" height="6.5" rx="1.5" />
+              <path d="M3 5.5V3.5a2.5 2.5 0 0 1 5 0v2" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+              <circle cx="5.5" cy="8.75" r="1" fill="var(--p-bg-subtle)" />
+            </svg>
+          ) : (
+            <svg width="11" height="13" viewBox="0 0 11 13" fill="currentColor" aria-hidden="true" style={{ display: 'block', flexShrink: 0 }}>
+              <rect x="1.5" y="5.5" width="8" height="6.5" rx="1.5" />
+              <path d="M3 5.5V3.5a2.5 2.5 0 0 1 5 0" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+            </svg>
+          )}
+          {scale.lockedFromOverrides ? 'Locked from overrides' : 'Lock from overrides'}
+        </button>
 
         <div style={{ marginTop: 12 }}>
           <FieldLabel htmlFor={sourceHexId}>Source color</FieldLabel>

@@ -3,6 +3,23 @@ import { usePaletteStore } from '../../store/paletteStore';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import type { ColorScale } from '../../types/palette';
 
+function LockIcon({ locked }: { locked?: boolean }) {
+  return locked ? (
+    <svg width="11" height="13" viewBox="0 0 11 13" fill="currentColor" aria-hidden="true" style={{ display: 'block' }}>
+      {/* Closed lock */}
+      <rect x="1.5" y="5.5" width="8" height="6.5" rx="1.5" />
+      <path d="M3 5.5V3.5a2.5 2.5 0 0 1 5 0v2" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      <circle cx="5.5" cy="8.75" r="1" fill="var(--p-bg-subtle)" />
+    </svg>
+  ) : (
+    <svg width="11" height="13" viewBox="0 0 11 13" fill="currentColor" aria-hidden="true" style={{ display: 'block' }}>
+      {/* Open lock */}
+      <rect x="1.5" y="5.5" width="8" height="6.5" rx="1.5" />
+      <path d="M3 5.5V3.5a2.5 2.5 0 0 1 5 0" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
 function GripIcon() {
@@ -29,6 +46,7 @@ function ScaleItem({
   onDragEnd,
   onMoveUp,
   onMoveDown,
+  onToggleLock,
 }: {
   scale: ColorScale;
   isActive: boolean;
@@ -40,6 +58,7 @@ function ScaleItem({
   onDragEnd: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  onToggleLock: () => void;
 }) {
   const ramp = useGeneratedRamp(scale);
   const srgbPreview = usePaletteStore((s) => s.srgbPreview);
@@ -112,6 +131,28 @@ function ScaleItem({
           ))}
         </div>
       </div>
+
+      {/* Lock toggle */}
+      <span
+        role="button"
+        aria-label={scale.lockedFromOverrides ? 'Unlock from overrides' : 'Lock from overrides'}
+        title={scale.lockedFromOverrides ? 'Locked — click to unlock' : 'Click to lock from global overrides'}
+        onClick={(e) => { e.stopPropagation(); onToggleLock(); }}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onToggleLock(); } }}
+        tabIndex={0}
+        style={{
+          flexShrink: 0,
+          color: scale.lockedFromOverrides ? 'var(--p-accent)' : 'var(--p-text-tertiary)',
+          opacity: scale.lockedFromOverrides ? 1 : 0.45,
+          cursor: 'pointer',
+          lineHeight: 0,
+          padding: '0 2px',
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        <LockIcon locked={scale.lockedFromOverrides} />
+      </span>
     </button>
   );
 }
@@ -122,6 +163,7 @@ export function Sidebar() {
   const setActiveScale = usePaletteStore((s) => s.setActiveScale);
   const addScale = usePaletteStore((s) => s.addScale);
   const reorderScales = usePaletteStore((s) => s.reorderScales);
+  const toggleScaleLock = usePaletteStore((s) => s.toggleScaleLock);
   const [newHex, setNewHex] = useState('#6366f1');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -204,6 +246,7 @@ export function Sidebar() {
                   }}
                   onMoveUp={() => i > 0 && reorderScales(i, i - 1)}
                   onMoveDown={() => i < scales.length - 1 && reorderScales(i, i + 1)}
+                  onToggleLock={() => toggleScaleLock(scale.id)}
                 />
               </div>
             );
