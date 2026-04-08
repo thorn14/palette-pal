@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { usePaletteStore } from '../../store/paletteStore';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import type { ColorScale } from '../../types/palette';
+import { LockIcon } from '../icons/LockIcon';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -41,6 +42,7 @@ function ScaleItem({
   onDuplicate,
   onMoveUp,
   onMoveDown,
+  onToggleLock,
 }: {
   scale: ColorScale;
   isActive: boolean;
@@ -55,6 +57,7 @@ function ScaleItem({
   onDuplicate: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  onToggleLock: () => void;
 }) {
   const ramp = useGeneratedRamp(scale);
   const [hovered, setHovered] = useState(false);
@@ -93,7 +96,7 @@ function ScaleItem({
         display: 'flex',
         alignItems: 'center',
         gap: 4,
-        padding: '8px 8px 8px 4px',
+        padding: '6px 6px 6px 4px',
         borderRadius: 6,
         background: isSelected
           ? 'var(--p-accent-subtle, rgba(99,102,241,0.12))'
@@ -102,7 +105,6 @@ function ScaleItem({
             : 'transparent',
         border: `1px solid ${isSelected ? 'var(--p-accent, #6366f1)' : isActive ? 'var(--p-border)' : 'transparent'}`,
         opacity: isDragging ? 0.35 : 1,
-        cursor: 'grab',
         transition: 'opacity 0.1s',
         userSelect: 'none',
         position: 'relative',
@@ -119,8 +121,8 @@ function ScaleItem({
         tabIndex={0}
         style={{
           flexShrink: 0,
-          width: 14,
-          height: 14,
+          width: 16,
+          height: 16,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -193,6 +195,31 @@ function ScaleItem({
       >
         <DuplicateIcon />
       </button>
+
+      {/* Lock toggle */}
+      <button
+        type="button"
+        aria-label={scale.lockedFromOverrides ? 'Unlock from overrides' : 'Lock from overrides'}
+        title={scale.lockedFromOverrides ? 'Locked — click to unlock' : 'Click to lock from global overrides'}
+        onClick={(e) => { e.stopPropagation(); onToggleLock(); }}
+        className="focus-visible-ring"
+        style={{
+          flexShrink: 0,
+          width: 22,
+          height: 22,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: scale.lockedFromOverrides ? 'var(--p-accent)' : 'var(--p-text-tertiary)',
+          opacity: scale.lockedFromOverrides ? 1 : 0.45,
+          cursor: 'pointer',
+          background: 'none',
+          border: 'none',
+          padding: 0,
+        }}
+      >
+        <LockIcon locked={scale.lockedFromOverrides} />
+      </button>
     </div>
   );
 }
@@ -209,6 +236,7 @@ export function Sidebar() {
   const selectAllScales = usePaletteStore((s) => s.selectAllScales);
   const clearSelection = usePaletteStore((s) => s.clearSelection);
   const removeSelectedScales = usePaletteStore((s) => s.removeSelectedScales);
+  const toggleScaleLock = usePaletteStore((s) => s.toggleScaleLock);
   const [newHex, setNewHex] = useState('#6366f1');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -298,9 +326,9 @@ export function Sidebar() {
       )}
 
       {/* Scale list */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
         <div
-          style={{ display: 'flex', flexDirection: 'column' }}
+          style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
           onDragOver={(e) => {
             // Allow drop on the container itself (end of list)
             e.preventDefault();
@@ -318,16 +346,19 @@ export function Sidebar() {
           {scales.map((scale, i) => {
             const showIndicator = dragOverIndex === i && dragIndex !== null && dragIndex !== i;
             return (
-              <div key={scale.id}>
-                {/* Drop indicator strip shown above this item */}
-                <div style={{
-                  height: showIndicator ? 4 : 0,
-                  margin: showIndicator ? '2px 12px' : '0 12px',
-                  borderRadius: 2,
-                  background: 'var(--p-accent)',
-                  transition: 'height 0.1s, margin 0.1s',
-                  pointerEvents: 'none',
-                }} />
+              <div key={scale.id} style={{ position: 'relative' }}>
+                {showIndicator && (
+                  <div style={{
+                    position: 'absolute',
+                    top: -4,
+                    left: 0,
+                    right: 0,
+                    height: 2,
+                    background: 'var(--p-accent)',
+                    borderRadius: 1,
+                    pointerEvents: 'none',
+                  }} />
+                )}
                 <ScaleItem
                   scale={scale}
                   isActive={effectiveActiveId === scale.id}
@@ -349,25 +380,20 @@ export function Sidebar() {
                   onDuplicate={() => duplicateScale(scale.id)}
                   onMoveUp={() => i > 0 && reorderScales(i, i - 1)}
                   onMoveDown={() => i < scales.length - 1 && reorderScales(i, i + 1)}
+                  onToggleLock={() => toggleScaleLock(scale.id)}
                 />
               </div>
             );
           })}
-          {/* Drop indicator at the very end of the list */}
-          {(() => {
-            const showEnd = dragOverIndex !== null && dragOverIndex >= scales.length - 1
-              && dragIndex !== null && dragIndex !== scales.length - 1;
-            return (
-              <div style={{
-                height: showEnd ? 4 : 0,
-                margin: showEnd ? '2px 12px' : '0 12px',
-                borderRadius: 2,
-                background: 'var(--p-accent)',
-                transition: 'height 0.1s, margin 0.1s',
-                pointerEvents: 'none',
-              }} />
-            );
-          })()}
+          {dragOverIndex !== null && dragOverIndex >= scales.length - 1
+            && dragIndex !== null && dragIndex !== scales.length - 1 && (
+            <div style={{
+              height: 2,
+              background: 'var(--p-accent)',
+              borderRadius: 1,
+              pointerEvents: 'none',
+            }} />
+          )}
         </div>
       </div>
 

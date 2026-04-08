@@ -51,14 +51,12 @@ interface PaletteActions {
   bulkCreateScales: (scales: Array<{ sourceHex: string; name: string }>, namingPreset: StepNamingPreset, lightnessPreset: LightnessPreset) => void;
   importScales: (imported: ImportedScale[], replace: boolean) => void;
   toggleSrgbPreview: () => void;
-  // Undo / redo
+  toggleScaleLock: (id: string) => void;
   undo: () => void;
   redo: () => void;
   beginCurveEdit: (id: string) => void;
   commitCurveEdit: () => void;
-  // Duplicate
   duplicateScale: (id: string) => void;
-  // Bulk select
   toggleSelectScale: (id: string) => void;
   selectAllScales: () => void;
   clearSelection: () => void;
@@ -246,6 +244,7 @@ function inflateScale(partial: Partial<ColorScale>, fallbackName: string): Color
     },
     lightnessPreset: (partial.lightnessPreset as LightnessPreset) ?? (partial.curves?.lightness ? 'custom' : 'tailwind'),
     chromaPeak: partial.chromaPeak ?? sourceOklch.c,
+    lockedFromOverrides: !!partial.lockedFromOverrides,
   };
 }
 
@@ -277,6 +276,11 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
     _isCurveEditing: false,
 
     toggleSrgbPreview: () => set((state) => { state.srgbPreview = !state.srgbPreview; }),
+
+    toggleScaleLock: (id) => set((state) => {
+      const scale = state.scales.find((s) => s.id === id);
+      if (scale) scale.lockedFromOverrides = !scale.lockedFromOverrides;
+    }),
 
     addScale: (sourceHex, name) => set((state) => {
       pushHistory(state);
@@ -356,7 +360,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
     updateStepNamingAll: (naming) => set((state) => {
       pushHistory(state);
       for (const scale of state.scales) {
-        scale.naming = naming;
+        if (!scale.lockedFromOverrides) scale.naming = naming;
       }
     }),
 
@@ -509,6 +513,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       const cleaned = names.map((n) => n.trim()).filter(Boolean);
       if (!cleaned.length) return;
       for (const scale of state.scales) {
+        if (scale.lockedFromOverrides) continue;
         scale.naming = { preset: 'custom', customNames: cleaned };
         scale.stepCount = cleaned.length;
         scale.curves.lightness.values = resampleCurve(scale.curves.lightness.values, cleaned.length);
@@ -564,6 +569,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       const cleaned = values.length ? values.map((v) => Math.max(0, Math.min(1, v))) : [];
       if (!cleaned.length) return;
       for (const scale of state.scales) {
+        if (scale.lockedFromOverrides) continue;
         scale.curves.lightness.values = resampleCurve(cleaned, scale.stepCount);
         scale.lightnessPreset = 'custom';
       }

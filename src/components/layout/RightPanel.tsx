@@ -3,6 +3,7 @@ import type { ColorScale, GeneratedStep } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
 import { getContrast, getApcaContrast, sourceWithChromaToHex, autoHueShiftBase, nearestPrimary, maxP3Chroma, maxSrgbChroma } from '../../lib/colorMath';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
+import { LockIcon } from '../icons/LockIcon';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -60,6 +61,7 @@ export function RightPanel({ scale, activeStep }: Props) {
   const beginCurveEdit = usePaletteStore((s) => s.beginCurveEdit);
   const commitCurveEdit = usePaletteStore((s) => s.commitCurveEdit);
   const removeScale = usePaletteStore((s) => s.removeScale);
+  const toggleScaleLock = usePaletteStore((s) => s.toggleScaleLock);
   const contrastMode = usePaletteStore((s) => s.contrastMode);
   const ramp = useGeneratedRamp(scale);
 
@@ -112,6 +114,28 @@ export function RightPanel({ scale, activeStep }: Props) {
           className="focus-visible-ring"
           autoComplete="off"
         />
+
+        <button
+          type="button"
+          onClick={() => toggleScaleLock(scale.id)}
+          title={scale.lockedFromOverrides ? 'Unlock from global overrides' : 'Lock from global overrides'}
+          className="focus-visible-ring"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            marginTop: 8,
+            padding: '4px 0',
+            fontSize: 12,
+            color: scale.lockedFromOverrides ? 'var(--p-accent)' : 'var(--p-text-secondary)',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <LockIcon locked={scale.lockedFromOverrides} />
+          {scale.lockedFromOverrides ? 'Locked from overrides' : 'Lock from overrides'}
+        </button>
 
         <div style={{ marginTop: 12 }}>
           <FieldLabel htmlFor={sourceHexId}>Source color</FieldLabel>
