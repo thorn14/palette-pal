@@ -56,12 +56,23 @@ export default function App() {
   useEffect(() => {
     function isEditableTarget(target: EventTarget | null): boolean {
       if (!(target instanceof HTMLElement)) return false;
-      const tagName = target.tagName.toLowerCase();
-      return (
-        target.isContentEditable ||
-        tagName === 'textarea' ||
-        (tagName === 'input' && !target.hasAttribute('readonly'))
-      );
+      if (target.isContentEditable) return true;
+      if (target instanceof HTMLTextAreaElement) return true;
+      if (target instanceof HTMLInputElement) {
+        if (target.readOnly || target.disabled) return false;
+        const editableInputTypes = new Set([
+          '',
+          'text',
+          'search',
+          'url',
+          'tel',
+          'email',
+          'password',
+          'number',
+        ]);
+        return editableInputTypes.has(target.type.toLowerCase());
+      }
+      return false;
     }
 
     function handleKeyDown(e: KeyboardEvent) {

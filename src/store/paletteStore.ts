@@ -730,6 +730,10 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
         ...plain,
         id: uid(),
         name: `${plain.name} (copy)`,
+        hueShift: { ...plain.hueShift },
+        naming: plain.naming.customNames
+          ? { preset: plain.naming.preset, customNames: plain.naming.customNames.slice() }
+          : { preset: plain.naming.preset },
         curves: {
           lightness: {
             values: plain.curves.lightness.values.slice(),

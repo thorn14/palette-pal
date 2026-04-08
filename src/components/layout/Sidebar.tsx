@@ -115,9 +115,16 @@ function ScaleItem({
       {/* Checkbox */}
       <div
         onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onToggleSelect(); } }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleSelect();
+          }
+        }}
         role="checkbox"
         aria-checked={isSelected}
+        aria-label={`Select ${scale.name}`}
         tabIndex={0}
         style={{
           flexShrink: 0,
@@ -174,6 +181,7 @@ function ScaleItem({
         type="button"
         onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
         title="Duplicate scale"
+        aria-label="Duplicate scale"
         style={{
           flexShrink: 0,
           width: 22,
@@ -185,13 +193,11 @@ function ScaleItem({
           border: 'none',
           borderRadius: 4,
           cursor: 'pointer',
-          color: 'var(--p-text-tertiary)',
+          color: hovered ? 'var(--p-text)' : 'var(--p-text-tertiary)',
           opacity: hovered ? 1 : 0,
           transition: 'opacity 0.1s, color 0.1s',
           padding: 0,
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--p-text)')}
-        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--p-text-tertiary)')}
       >
         <DuplicateIcon />
       </button>
