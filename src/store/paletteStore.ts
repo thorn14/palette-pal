@@ -347,7 +347,6 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
 
     toggleSrgbPreview: () => set((state) => { state.srgbPreview = !state.srgbPreview; }),
 
-<<<<<<< HEAD
     flushCurrentPalette: () => set((state) => {
       const palette = state.savedPalettes.find((p) => p.id === state.activePaletteId);
       if (!palette) return;
