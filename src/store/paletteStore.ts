@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current } from 'immer';
-import type { ColorScale, PaletteState, StepNamingConfig, StepNamingPreset, ContrastMode } from '../types/palette';
+import type { ColorScale, PaletteState, SavedPalette, StepNamingConfig, StepNamingPreset, ContrastMode } from '../types/palette';
 import { hexToOklch, buildDefaultCurves, buildChromaCurve, oklchToHex, computeHueShift } from '../lib/colorMath';
 import { buildLightnessValues, resolveStepNames, type LightnessPreset } from '../constants/stepPresets';
 import type { ImportedScale } from '../lib/importTokens';
@@ -25,6 +25,11 @@ interface PaletteActions {
   removeScale: (id: string) => void;
   reorderScales: (fromIndex: number, toIndex: number) => void;
   setActiveScale: (id: string | null) => void;
+  flushCurrentPalette: () => void;
+  switchPalette: (id: string) => void;
+  createPalette: (name: string) => void;
+  deletePalette: (id: string) => void;
+  renamePalette: (id: string, name: string) => void;
   updateSourceHex: (id: string, hex: string) => void;
   updateScaleName: (id: string, name: string) => void;
   updateStepNaming: (id: string, naming: StepNamingConfig) => void;
@@ -106,8 +111,17 @@ function makeDefaultScale(sourceHex: string, name?: string): ColorScale {
 
 type PaletteConfig = {
   version?: number;
+  // v1 fields
   activeScaleId?: string | null;
   scales?: Partial<ColorScale>[];
+  // v2 fields
+  activePaletteId?: string | null;
+  palettes?: Array<{
+    id?: string;
+    name?: string;
+    activeScaleId?: string | null;
+    scales?: Partial<ColorScale>[];
+  }>;
 };
 
 function normalizeNames(scale: ColorScale): string[] {
@@ -248,18 +262,74 @@ function inflateScale(partial: Partial<ColorScale>, fallbackName: string): Color
   };
 }
 
+function inflatePalette(
+  raw: { id?: string; name?: string; activeScaleId?: string | null; scales?: Partial<ColorScale>[] },
+  fallbackName: string,
+): SavedPalette {
+  const scales = Array.isArray(raw.scales) && raw.scales.length > 0
+    ? raw.scales.map((s, i) => inflateScale(s, `Color ${i + 1}`))
+    : [makeDefaultScale(DEFAULT_HEX, 'Blue')];
+  const activeScaleId = raw.activeScaleId && scales.some((s) => s.id === raw.activeScaleId)
+    ? raw.activeScaleId
+    : null;
+  return {
+    id: typeof raw.id === 'string' ? raw.id : uid(),
+    name: typeof raw.name === 'string' && raw.name.length > 0 ? raw.name : fallbackName,
+    activeScaleId,
+    scales,
+  };
+}
+
 function loadInitialState(): PaletteState {
   const cfg = (initialConfig ?? {}) as PaletteConfig;
-  if (Array.isArray(cfg.scales) && cfg.scales.length > 0) {
-    const scales = cfg.scales.map((scale, i) => inflateScale(scale, `Color ${i + 1}`));
-    const activeScaleId =
-      cfg.activeScaleId && scales.some((s) => s.id === cfg.activeScaleId)
-        ? cfg.activeScaleId
-        : null;
-    return { scales, activeScaleId, focusedStepRef: null, contrastMode: 'wcag', srgbPreview: false };
+
+  // v2 format: has palettes array
+  if (cfg.version === 2 && Array.isArray(cfg.palettes) && cfg.palettes.length > 0) {
+    const savedPalettes = cfg.palettes.map((p, i) => inflatePalette(p, `Palette ${i + 1}`));
+    const activePaletteId = cfg.activePaletteId && savedPalettes.some((p) => p.id === cfg.activePaletteId)
+      ? cfg.activePaletteId
+      : savedPalettes[0]!.id;
+    const active = savedPalettes.find((p) => p.id === activePaletteId) ?? savedPalettes[0]!;
+    return {
+      savedPalettes,
+      activePaletteId,
+      currentPaletteName: active.name,
+      scales: active.scales,
+      activeScaleId: active.activeScaleId,
+      focusedStepRef: null,
+      contrastMode: 'wcag',
+      srgbPreview: false,
+    };
   }
+
+  // v1 format: flat scales array — migrate to a single "Default" palette
+  const defaultId = uid();
+  if (Array.isArray(cfg.scales) && cfg.scales.length > 0) {
+    const scales = cfg.scales.map((s, i) => inflateScale(s, `Color ${i + 1}`));
+    const activeScaleId = cfg.activeScaleId && scales.some((s) => s.id === cfg.activeScaleId)
+      ? cfg.activeScaleId
+      : null;
+    const palette: SavedPalette = { id: defaultId, name: 'Default', activeScaleId, scales };
+    return {
+      savedPalettes: [palette],
+      activePaletteId: defaultId,
+      currentPaletteName: 'Default',
+      scales,
+      activeScaleId,
+      focusedStepRef: null,
+      contrastMode: 'wcag',
+      srgbPreview: false,
+    };
+  }
+
+  // Empty state
+  const defaultScale = makeDefaultScale(DEFAULT_HEX, 'Blue');
+  const palette: SavedPalette = { id: defaultId, name: 'Default', activeScaleId: null, scales: [defaultScale] };
   return {
-    scales: [makeDefaultScale(DEFAULT_HEX, 'Blue')],
+    savedPalettes: [palette],
+    activePaletteId: defaultId,
+    currentPaletteName: 'Default',
+    scales: [defaultScale],
     activeScaleId: null,
     focusedStepRef: null,
     contrastMode: 'wcag',
@@ -276,6 +346,76 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
     _isCurveEditing: false,
 
     toggleSrgbPreview: () => set((state) => { state.srgbPreview = !state.srgbPreview; }),
+
+<<<<<<< HEAD
+    flushCurrentPalette: () => set((state) => {
+      const palette = state.savedPalettes.find((p) => p.id === state.activePaletteId);
+      if (!palette) return;
+      palette.scales = state.scales;
+      palette.activeScaleId = state.activeScaleId;
+      palette.name = state.currentPaletteName;
+    }),
+
+    switchPalette: (id) => set((state) => {
+      if (id === state.activePaletteId) return;
+      // Flush working state into current palette slot
+      const current = state.savedPalettes.find((p) => p.id === state.activePaletteId);
+      if (current) {
+        current.scales = state.scales;
+        current.activeScaleId = state.activeScaleId;
+        current.name = state.currentPaletteName;
+      }
+      // Load the target palette
+      const target = state.savedPalettes.find((p) => p.id === id);
+      if (!target) return;
+      state.activePaletteId = id;
+      state.currentPaletteName = target.name;
+      state.scales = target.scales;
+      state.activeScaleId = target.activeScaleId;
+      state.focusedStepRef = null;
+    }),
+
+    createPalette: (name) => set((state) => {
+      // Flush working state into current palette slot
+      const current = state.savedPalettes.find((p) => p.id === state.activePaletteId);
+      if (current) {
+        current.scales = state.scales;
+        current.activeScaleId = state.activeScaleId;
+        current.name = state.currentPaletteName;
+      }
+      const newScale = makeDefaultScale(DEFAULT_HEX, 'Blue');
+      const newPalette: SavedPalette = {
+        id: uid(),
+        name,
+        activeScaleId: null,
+        scales: [newScale],
+      };
+      state.savedPalettes.push(newPalette);
+      state.activePaletteId = newPalette.id;
+      state.currentPaletteName = name;
+      state.scales = [newScale];
+      state.activeScaleId = null;
+      state.focusedStepRef = null;
+    }),
+
+    deletePalette: (id) => set((state) => {
+      if (state.savedPalettes.length <= 1) return;
+      state.savedPalettes = state.savedPalettes.filter((p) => p.id !== id);
+      if (state.activePaletteId === id) {
+        const next = state.savedPalettes[0]!;
+        state.activePaletteId = next.id;
+        state.currentPaletteName = next.name;
+        state.scales = next.scales;
+        state.activeScaleId = next.activeScaleId;
+        state.focusedStepRef = null;
+      }
+    }),
+
+    renamePalette: (id, name) => set((state) => {
+      const palette = state.savedPalettes.find((p) => p.id === id);
+      if (palette) palette.name = name;
+      if (state.activePaletteId === id) state.currentPaletteName = name;
+    }),
 
     toggleScaleLock: (id) => set((state) => {
       const scale = state.scales.find((s) => s.id === id);
