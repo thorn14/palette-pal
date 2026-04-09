@@ -100,7 +100,7 @@ export function ImportModal({ onClose }: Props) {
           }}
         >
           <h2 id="import-modal-title" style={{ fontSize: 15, fontWeight: 600, color: 'var(--p-text)', margin: 0 }}>
-            Import — W3C Design Tokens
+            Import Color Tokens
           </h2>
           <button
             onClick={onClose}
@@ -163,7 +163,7 @@ export function ImportModal({ onClose }: Props) {
             name="import-json"
             value={json}
             onChange={(e) => handleParse(e.target.value)}
-            placeholder='Paste W3C DTCG JSON here…'
+            placeholder='Paste design token JSON here (W3C DTCG, Figma Variables, or lukasoppermann/design-tokens format)…'
             spellCheck={false}
             aria-label="Paste W3C design token JSON"
             className="focus-visible-ring"
