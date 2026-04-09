@@ -35,6 +35,7 @@ export interface ColorScale {
   hueShift: HueShiftConfig;
   lightnessPreset: string;     // last-applied lightness preset key
   chromaPeak: number;          // 0–0.4, peak of the chroma bell curve
+  lockedFromOverrides?: boolean; // if true, skip bulk lightness/step overrides
 }
 
 export type GamutLevel = 'srgb' | 'p3' | 'out';

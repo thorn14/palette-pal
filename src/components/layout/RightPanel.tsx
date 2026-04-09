@@ -3,6 +3,7 @@ import type { ColorScale, GeneratedStep } from '../../types/palette';
 import { usePaletteStore } from '../../store/paletteStore';
 import { getContrast, getApcaContrast, sourceWithChromaToHex, autoHueShiftBase, nearestPrimary, maxP3Chroma, maxSrgbChroma } from '../../lib/colorMath';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
+import { LockIcon } from '../icons/LockIcon';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -57,7 +58,10 @@ export function RightPanel({ scale, activeStep }: Props) {
   const updateChromaPeak = usePaletteStore((s) => s.updateChromaPeak);
   const setChromaCurveValues = usePaletteStore((s) => s.setChromaCurveValues);
   const updateCurveSmoothing = usePaletteStore((s) => s.updateCurveSmoothing);
+  const beginCurveEdit = usePaletteStore((s) => s.beginCurveEdit);
+  const commitCurveEdit = usePaletteStore((s) => s.commitCurveEdit);
   const removeScale = usePaletteStore((s) => s.removeScale);
+  const toggleScaleLock = usePaletteStore((s) => s.toggleScaleLock);
   const contrastMode = usePaletteStore((s) => s.contrastMode);
   const ramp = useGeneratedRamp(scale);
 
@@ -111,6 +115,28 @@ export function RightPanel({ scale, activeStep }: Props) {
           autoComplete="off"
         />
 
+        <button
+          type="button"
+          onClick={() => toggleScaleLock(scale.id)}
+          title={scale.lockedFromOverrides ? 'Unlock from global overrides' : 'Lock from global overrides'}
+          className="focus-visible-ring"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            marginTop: 8,
+            padding: '4px 0',
+            fontSize: 12,
+            color: scale.lockedFromOverrides ? 'var(--p-accent)' : 'var(--p-text-secondary)',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <LockIcon locked={scale.lockedFromOverrides} />
+          {scale.lockedFromOverrides ? 'Locked from overrides' : 'Lock from overrides'}
+        </button>
+
         <div style={{ marginTop: 12 }}>
           <FieldLabel htmlFor={sourceHexId}>Source color</FieldLabel>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -162,7 +188,9 @@ export function RightPanel({ scale, activeStep }: Props) {
             max={0.4}
             step={0.001}
             value={scale.chromaPeak}
+            onPointerDown={() => beginCurveEdit(scale.id)}
             onChange={(e) => updateChromaPeak(scale.id, parseFloat(e.target.value))}
+            onPointerUp={() => commitCurveEdit()}
             style={{ flex: 1, accentColor: 'var(--p-accent)' }}
             aria-label="Peak chroma"
           />
@@ -262,7 +290,9 @@ export function RightPanel({ scale, activeStep }: Props) {
                 max={1}
                 step={0.01}
                 value={value}
+                onPointerDown={() => beginCurveEdit(scale.id)}
                 onChange={(e) => updateCurveSmoothing(scale.id, key, parseFloat(e.target.value))}
+                onPointerUp={() => commitCurveEdit()}
                 style={{ width: '100%', accentColor: color }}
                 aria-label={`${label} smoothing`}
               />
