@@ -4,6 +4,7 @@ import { usePaletteStore } from '../../store/paletteStore';
 import { getContrast, getApcaContrast, sourceWithChromaToHex, autoHueShiftBase, nearestPrimary, maxP3Chroma, maxSrgbChroma } from '../../lib/colorMath';
 import { useGeneratedRamp } from '../../hooks/useGeneratedRamp';
 import { LockIcon } from '../icons/LockIcon';
+import { canonicalScaleName } from '../../lib/scaleNaming';
 
 const supportsP3 = typeof CSS !== 'undefined' && CSS.supports('color', 'color(display-p3 0 0 0)');
 
@@ -55,9 +56,9 @@ export function RightPanel({ scale, activeStep }: Props) {
   const updateSourceHex = usePaletteStore((s) => s.updateSourceHex);
   const updateScaleName = usePaletteStore((s) => s.updateScaleName);
   const scales = usePaletteStore((s) => s.scales);
-  const trimmedName = scale.name.trim();
-  const nameConflict = trimmedName.length > 0 && scales.some(
-    (s) => s.id !== scale.id && s.name.trim() === trimmedName,
+  const nameKey = canonicalScaleName(scale.name);
+  const nameConflict = scales.some(
+    (s) => s.id !== scale.id && canonicalScaleName(s.name) === nameKey,
   );
   const updateHueShift = usePaletteStore((s) => s.updateHueShift);
   const updateChromaPeak = usePaletteStore((s) => s.updateChromaPeak);
@@ -117,7 +118,7 @@ export function RightPanel({ scale, activeStep }: Props) {
           onChange={(e) => updateScaleName(scale.id, e.target.value)}
           style={{
             ...inputStyle,
-            ...(nameConflict ? { borderColor: 'var(--p-warning, #d97706)' } : {}),
+            ...(nameConflict ? { borderColor: 'var(--p-warning)' } : {}),
           }}
           className="focus-visible-ring"
           autoComplete="off"
@@ -128,9 +129,9 @@ export function RightPanel({ scale, activeStep }: Props) {
           <div
             id={`${nameId}-warning`}
             role="status"
-            style={{ fontSize: 11, color: 'var(--p-warning, #d97706)', marginTop: 4, lineHeight: 1.4 }}
+            style={{ fontSize: 11, color: 'var(--p-warning)', marginTop: 4, lineHeight: 1.4 }}
           >
-            Another scale in this palette has the same name. Export will suffix this one (e.g. “{trimmedName} 2”) to keep both.
+            Another scale in this palette has the same name. Export will suffix this one (e.g. “{nameKey} 2”) to keep both.
           </div>
         )}
 

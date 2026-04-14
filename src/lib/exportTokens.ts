@@ -1,4 +1,5 @@
 import type { GeneratedRamp, GeneratedStep, W3CTokenGroup, W3CTokenValue, W3CColorValue, RgbChannels } from '../types/palette';
+import { canonicalScaleName, disambiguateKey } from './scaleNaming';
 
 function roundChannel(v: number): number {
   // DTCG spec requires components in [0, 1]. Floating-point conversion can
@@ -36,10 +37,10 @@ function buildColorValue(step: GeneratedStep): W3CColorValue {
 
 export function exportToW3CTokens(ramps: GeneratedRamp[]): W3CTokenGroup {
   const root: W3CTokenGroup = {};
-  // Track emitted group keys so scales with duplicate names don't silently
-  // overwrite each other. Users can legitimately end up with two scales
-  // sharing a name (e.g. "Green" + "Green"); suffix later ones with " 2",
-  // " 3", etc. so every scale makes it into the export.
+  // Track emitted group keys so scales with duplicate *canonical* names don't
+  // silently overwrite each other. Canonical = trim(); whitespace-only →
+  // "Color" (same as the store + conflict UI). Suffix later ramps with
+  // " 2", " 3", … so every scale makes it into the export.
   const usedKeys = new Set<string>();
 
   for (const ramp of ramps) {
@@ -52,12 +53,8 @@ export function exportToW3CTokens(ramps: GeneratedRamp[]): W3CTokenGroup {
       group[step.name] = token;
     }
 
-    let key = ramp.scaleName;
-    if (usedKeys.has(key)) {
-      let n = 2;
-      while (usedKeys.has(`${ramp.scaleName} ${n}`)) n++;
-      key = `${ramp.scaleName} ${n}`;
-    }
+    const base = canonicalScaleName(ramp.scaleName);
+    const key = disambiguateKey(base, usedKeys);
     usedKeys.add(key);
     root[key] = group as W3CTokenGroup;
   }

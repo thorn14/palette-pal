@@ -5,6 +5,7 @@ import type { ColorScale, PaletteState, SavedPalette, StepNamingConfig, StepNami
 import { hexToOklch, buildDefaultCurves, buildChromaCurve, oklchToHex, computeHueShift } from '../lib/colorMath';
 import { buildLightnessValues, resolveStepNames, type LightnessPreset } from '../constants/stepPresets';
 import type { ImportedScale } from '../lib/importTokens';
+import { canonicalScaleName, disambiguateKey } from '../lib/scaleNaming';
 import initialConfig from '../color-tokens.json';
 
 // nanoid is a small dep, but we can also just use crypto.randomUUID
@@ -22,15 +23,12 @@ function uniqueScaleName(
   existing: readonly ColorScale[],
   ignoreId?: string,
 ): string {
-  const base = desired.trim() || 'Color';
+  const base = canonicalScaleName(desired);
   const taken = new Set<string>();
   for (const s of existing) {
-    if (s.id !== ignoreId) taken.add(s.name);
+    if (s.id !== ignoreId) taken.add(canonicalScaleName(s.name));
   }
-  if (!taken.has(base)) return base;
-  let n = 2;
-  while (taken.has(`${base} ${n}`)) n++;
-  return `${base} ${n}`;
+  return disambiguateKey(base, taken);
 }
 
 interface HistorySnapshot {
