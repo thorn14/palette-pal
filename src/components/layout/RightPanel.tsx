@@ -51,6 +51,8 @@ export function RightPanel({ scale, activeStep }: Props) {
   const nameId = `${idBase}-scale-name`;
   const sourceHexId = `${idBase}-source-hex`;
   const chromaRangeId = `${idBase}-chroma-range`;
+  const chromaLowRangeId = `${idBase}-chroma-low-range`;
+  const chromaHighRangeId = `${idBase}-chroma-high-range`;
   const lightEndAdjustId = `${idBase}-light-end-adjust`;
   const darkEndAdjustId = `${idBase}-dark-end-adjust`;
   const updateSourceHex = usePaletteStore((s) => s.updateSourceHex);
@@ -64,6 +66,9 @@ export function RightPanel({ scale, activeStep }: Props) {
   );
   const updateHueShift = usePaletteStore((s) => s.updateHueShift);
   const updateChromaPeak = usePaletteStore((s) => s.updateChromaPeak);
+  const updateChromaLow = usePaletteStore((s) => s.updateChromaLow);
+  const updateChromaHigh = usePaletteStore((s) => s.updateChromaHigh);
+  const setChromaShapeAll = usePaletteStore((s) => s.setChromaShapeAll);
   const setChromaCurveValues = usePaletteStore((s) => s.setChromaCurveValues);
   const updateCurveSmoothing = usePaletteStore((s) => s.updateCurveSmoothing);
   const beginCurveEdit = usePaletteStore((s) => s.beginCurveEdit);
@@ -100,6 +105,36 @@ export function RightPanel({ scale, activeStep }: Props) {
     const v = parseFloat(chromaDraft);
     if (isFinite(v)) updateChromaPeak(scale.id, v);
     else setChromaDraft(scale.chromaPeak.toFixed(3));
+  }
+
+  // --- Chroma low draft ---
+  const chromaLowVal = scale.chromaLow ?? 0;
+  const [chromaLowDraft, setChromaLowDraft] = useState(chromaLowVal.toFixed(3));
+  const chromaLowFocused = useRef(false);
+  useEffect(() => {
+    if (!chromaLowFocused.current) setChromaLowDraft(chromaLowVal.toFixed(3));
+  }, [chromaLowVal]);
+
+  function commitChromaLow() {
+    chromaLowFocused.current = false;
+    const v = parseFloat(chromaLowDraft);
+    if (isFinite(v)) updateChromaLow(scale.id, v);
+    else setChromaLowDraft(chromaLowVal.toFixed(3));
+  }
+
+  // --- Chroma high draft ---
+  const chromaHighVal = scale.chromaHigh ?? 0;
+  const [chromaHighDraft, setChromaHighDraft] = useState(chromaHighVal.toFixed(3));
+  const chromaHighFocused = useRef(false);
+  useEffect(() => {
+    if (!chromaHighFocused.current) setChromaHighDraft(chromaHighVal.toFixed(3));
+  }, [chromaHighVal]);
+
+  function commitChromaHigh() {
+    chromaHighFocused.current = false;
+    const v = parseFloat(chromaHighDraft);
+    if (isFinite(v)) updateChromaHigh(scale.id, v);
+    else setChromaHighDraft(chromaHighVal.toFixed(3));
   }
 
   return (
@@ -201,7 +236,46 @@ export function RightPanel({ scale, activeStep }: Props) {
       {/* Chroma */}
       <div style={sectionStyle}>
         <SectionLabel>Chroma</SectionLabel>
-        <FieldLabel htmlFor={chromaRangeId}>Peak chroma (0 – 0.4)</FieldLabel>
+        <FieldLabel htmlFor={chromaLowRangeId}>Low-end chroma (light)</FieldLabel>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input
+            id={chromaLowRangeId}
+            type="range"
+            min={0}
+            max={0.4}
+            step={0.001}
+            value={chromaLowVal}
+            onPointerDown={() => beginCurveEdit(scale.id)}
+            onChange={(e) => updateChromaLow(scale.id, parseFloat(e.target.value))}
+            onPointerUp={() => commitCurveEdit()}
+            style={{ flex: 1, accentColor: 'var(--p-accent)' }}
+            aria-label="Low-end chroma"
+          />
+          <input
+            name="low-chroma"
+            type="number"
+            min={0}
+            max={0.4}
+            step={0.001}
+            value={chromaLowDraft}
+            onFocus={() => { chromaLowFocused.current = true; }}
+            onChange={(e) => setChromaLowDraft(e.target.value)}
+            onBlur={commitChromaLow}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitChromaLow(); }}
+            style={{
+              ...inputStyle,
+              width: 64,
+              textAlign: 'right',
+              fontFamily: 'monospace',
+              fontSize: 12,
+              padding: '4px 6px',
+            }}
+            className="focus-visible-ring"
+            aria-label="Low-end chroma numeric value"
+          />
+        </div>
+
+        <FieldLabel htmlFor={chromaRangeId}>Mid chroma (0 – 0.4)</FieldLabel>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <input
             id={chromaRangeId}
@@ -214,10 +288,10 @@ export function RightPanel({ scale, activeStep }: Props) {
             onChange={(e) => updateChromaPeak(scale.id, parseFloat(e.target.value))}
             onPointerUp={() => commitCurveEdit()}
             style={{ flex: 1, accentColor: 'var(--p-accent)' }}
-            aria-label="Peak chroma"
+            aria-label="Mid chroma"
           />
           <input
-            name="peak-chroma"
+            name="mid-chroma"
             type="number"
             min={0}
             max={0.4}
@@ -236,8 +310,66 @@ export function RightPanel({ scale, activeStep }: Props) {
               padding: '4px 6px',
             }}
             className="focus-visible-ring"
-            aria-label="Peak chroma numeric value"
+            aria-label="Mid chroma numeric value"
           />
+        </div>
+
+        <FieldLabel htmlFor={chromaHighRangeId}>High-end chroma (dark)</FieldLabel>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input
+            id={chromaHighRangeId}
+            type="range"
+            min={0}
+            max={0.4}
+            step={0.001}
+            value={chromaHighVal}
+            onPointerDown={() => beginCurveEdit(scale.id)}
+            onChange={(e) => updateChromaHigh(scale.id, parseFloat(e.target.value))}
+            onPointerUp={() => commitCurveEdit()}
+            style={{ flex: 1, accentColor: 'var(--p-accent)' }}
+            aria-label="High-end chroma"
+          />
+          <input
+            name="high-chroma"
+            type="number"
+            min={0}
+            max={0.4}
+            step={0.001}
+            value={chromaHighDraft}
+            onFocus={() => { chromaHighFocused.current = true; }}
+            onChange={(e) => setChromaHighDraft(e.target.value)}
+            onBlur={commitChromaHigh}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitChromaHigh(); }}
+            style={{
+              ...inputStyle,
+              width: 64,
+              textAlign: 'right',
+              fontFamily: 'monospace',
+              fontSize: 12,
+              padding: '4px 6px',
+            }}
+            className="focus-visible-ring"
+            aria-label="High-end chroma numeric value"
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+          <button
+            onClick={() => setChromaShapeAll(chromaLowVal, scale.chromaPeak, chromaHighVal)}
+            className="focus-visible-ring"
+            style={{
+              flex: 1,
+              padding: '5px 8px',
+              fontSize: 12,
+              background: 'var(--p-bg)',
+              border: '1px solid var(--p-border)',
+              borderRadius: 6,
+              color: 'var(--p-text-secondary)',
+              cursor: 'pointer',
+            }}
+          >
+            Apply to all
+          </button>
         </div>
         <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
           <button

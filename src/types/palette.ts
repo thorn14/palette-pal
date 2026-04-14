@@ -35,6 +35,8 @@ export interface ColorScale {
   hueShift: HueShiftConfig;
   lightnessPreset: string;     // last-applied lightness preset key
   chromaPeak: number;          // 0–0.4, peak of the chroma bell curve
+  chromaLow?: number;          // 0–0.4, chroma floor at light end (step 0). Default: 0
+  chromaHigh?: number;         // 0–0.4, chroma floor at dark end (last step). Default: 0
   lockedFromOverrides?: boolean; // if true, skip bulk lightness/step overrides
 }
 

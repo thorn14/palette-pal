@@ -15,9 +15,14 @@ const tokensPath = resolve(projectRoot, 'src/color-tokens.json');
 const outputPath = resolve(projectRoot, 'color-tokens-export.json');
 
 const config = JSON.parse(readFileSync(tokensPath, 'utf-8')) as {
-  scales: ColorScale[];
+  version?: number;
+  scales?: ColorScale[];
+  palettes?: { scales: ColorScale[] }[];
 };
-const scales = config.scales ?? [];
+
+const scales: ColorScale[] = config.version === 2
+  ? (config.palettes ?? []).flatMap((p) => p.scales)
+  : config.scales ?? [];
 const ramps = scales.map((s) => generateRamp(s));
 const tokens = exportToW3CTokens(ramps);
 

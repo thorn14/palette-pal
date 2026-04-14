@@ -67,6 +67,9 @@ interface PaletteActions {
   updateHueShift: (id: string, end: 'lightEndAdjust' | 'darkEndAdjust', value: number) => void;
   applyLightnessPreset: (id: string, preset: LightnessPreset) => void;
   updateChromaPeak: (id: string, peak: number) => void;
+  updateChromaLow: (id: string, low: number) => void;
+  updateChromaHigh: (id: string, high: number) => void;
+  setChromaShapeAll: (low: number, peak: number, high: number) => void;
   setChromaCurveValues: (id: string, values: number[]) => void;
   setFocusedStep: (ref: { scaleId: string; stepName: string } | null) => void;
   setContrastMode: (mode: ContrastMode) => void;
@@ -123,6 +126,8 @@ function makeDefaultScale(sourceHex: string, name?: string): ColorScale {
     hueShift: { lightEndAdjust: 0, darkEndAdjust: 0 },
     lightnessPreset: 'tailwind',
     chromaPeak: sourceOklch.c,
+    chromaLow: 0,
+    chromaHigh: 0,
   };
 }
 
@@ -275,6 +280,8 @@ function inflateScale(partial: Partial<ColorScale>, fallbackName: string): Color
     },
     lightnessPreset: (partial.lightnessPreset as LightnessPreset) ?? (partial.curves?.lightness ? 'custom' : 'tailwind'),
     chromaPeak: partial.chromaPeak ?? sourceOklch.c,
+    chromaLow: partial.chromaLow ?? 0,
+    chromaHigh: partial.chromaHigh ?? 0,
     lockedFromOverrides: !!partial.lockedFromOverrides,
   };
 }
@@ -283,9 +290,9 @@ function inflatePalette(
   raw: { id?: string; name?: string; activeScaleId?: string | null; scales?: Partial<ColorScale>[] },
   fallbackName: string,
 ): SavedPalette {
-  const scales = Array.isArray(raw.scales) && raw.scales.length > 0
+  const scales = Array.isArray(raw.scales)
     ? raw.scales.map((s, i) => inflateScale(s, `Color ${i + 1}`))
-    : [makeDefaultScale(DEFAULT_HEX, 'Blue')];
+    : [];
   const activeScaleId = raw.activeScaleId && scales.some((s) => s.id === raw.activeScaleId)
     ? raw.activeScaleId
     : null;
@@ -339,14 +346,13 @@ function loadInitialState(): PaletteState {
     };
   }
 
-  // Empty state
-  const defaultScale = makeDefaultScale(DEFAULT_HEX, 'Blue');
-  const palette: SavedPalette = { id: defaultId, name: 'Default', activeScaleId: null, scales: [defaultScale] };
+  // Empty state — no scales, show scale picker
+  const palette: SavedPalette = { id: defaultId, name: 'Default', activeScaleId: null, scales: [] };
   return {
     savedPalettes: [palette],
     activePaletteId: defaultId,
     currentPaletteName: 'Default',
-    scales: [defaultScale],
+    scales: [],
     activeScaleId: null,
     focusedStepRef: null,
     contrastMode: 'wcag',
@@ -399,17 +405,16 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
         current.activeScaleId = state.activeScaleId;
         current.name = state.currentPaletteName;
       }
-      const newScale = makeDefaultScale(DEFAULT_HEX, 'Blue');
       const newPalette: SavedPalette = {
         id: uid(),
         name,
         activeScaleId: null,
-        scales: [newScale],
+        scales: [],
       };
       state.savedPalettes.push(newPalette);
       state.activePaletteId = newPalette.id;
       state.currentPaletteName = name;
-      state.scales = [newScale];
+      state.scales = [];
       state.activeScaleId = null;
       state.focusedStepRef = null;
     }),
@@ -488,7 +493,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
         scale.sourceAlpha = sourceOklch.alpha ?? 1;
         const newCurves = buildDefaultCurves(sourceOklch, scale.stepCount);
         // Preserve user's chroma peak — don't let the new source color override it
-        newCurves.chroma.values = buildChromaCurve(scale.chromaPeak, scale.stepCount);
+        newCurves.chroma.values = buildChromaCurve(scale.chromaPeak, scale.stepCount, scale.chromaLow ?? 0, scale.chromaHigh ?? 0);
         // Preserve lightness — re-apply the active preset or keep custom values
         if (scale.lightnessPreset === 'custom') {
           newCurves.lightness.values = scale.curves.lightness.values.slice();
@@ -757,14 +762,53 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       pushHistory(state);
       const clamped = Math.max(0, Math.min(0.4, peak));
       scale.chromaPeak = clamped;
-      scale.curves.chroma.values = buildChromaCurve(clamped, scale.stepCount);
+      scale.curves.chroma.values = buildChromaCurve(clamped, scale.stepCount, scale.chromaLow ?? 0, scale.chromaHigh ?? 0);
+    }),
+
+    updateChromaLow: (id, low) => set((state) => {
+      const scale = state.scales.find((s) => s.id === id);
+      if (!scale) return;
+      pushHistory(state);
+      const clamped = Math.max(0, Math.min(0.4, low));
+      scale.chromaLow = clamped;
+      scale.curves.chroma.values = buildChromaCurve(scale.chromaPeak, scale.stepCount, clamped, scale.chromaHigh ?? 0);
+    }),
+
+    updateChromaHigh: (id, high) => set((state) => {
+      const scale = state.scales.find((s) => s.id === id);
+      if (!scale) return;
+      pushHistory(state);
+      const clamped = Math.max(0, Math.min(0.4, high));
+      scale.chromaHigh = clamped;
+      scale.curves.chroma.values = buildChromaCurve(scale.chromaPeak, scale.stepCount, scale.chromaLow ?? 0, clamped);
+    }),
+
+    setChromaShapeAll: (low, peak, high) => set((state) => {
+      pushHistory(state);
+      const clampedPeak = Math.max(0, Math.min(0.4, peak));
+      const clampedLow = Math.max(0, Math.min(0.4, low));
+      const clampedHigh = Math.max(0, Math.min(0.4, high));
+      for (const scale of state.scales) {
+        if (scale.lockedFromOverrides) continue;
+        scale.chromaPeak = clampedPeak;
+        scale.chromaLow = clampedLow;
+        scale.chromaHigh = clampedHigh;
+        scale.curves.chroma.values = buildChromaCurve(clampedPeak, scale.stepCount, clampedLow, clampedHigh);
+      }
     }),
 
     setChromaCurveValues: (id, values) => set((state) => {
       pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
-      scale.curves.chroma.values = values.slice(0, scale.stepCount);
+      const clamped = values.slice(0, scale.stepCount);
+      scale.curves.chroma.values = clamped;
+      // Sync scalar fields so updateSourceHex and Apply-to-all stay consistent
+      if (clamped.length > 0) {
+        scale.chromaLow = clamped[0];
+        scale.chromaHigh = clamped[clamped.length - 1];
+        scale.chromaPeak = Math.max(...clamped);
+      }
     }),
 
     setFocusedStep: (ref) => set((state) => {

@@ -285,14 +285,19 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
     >
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <circle cx="10" cy="10" r="9" fill="var(--p-bg-subtle)" stroke="var(--p-border)" strokeWidth="1.5" />
-          <circle cx="7" cy="7" r="2.2" fill="var(--p-text-secondary)" />
-          <circle cx="13" cy="7" r="2.2" fill="var(--p-text-tertiary)" />
-          <circle cx="7" cy="13" r="2.2" fill="var(--p-text)" />
-          <circle cx="13" cy="13" r="2.2" fill="var(--p-border)" />
+        <svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="6" fill="#0d1117" />
+          <defs>
+            <linearGradient id="logo-g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#f472b6" />
+              <stop offset="33%" stopColor="#a78bfa" />
+              <stop offset="66%" stopColor="#38bdf8" />
+              <stop offset="100%" stopColor="#34d399" />
+            </linearGradient>
+          </defs>
+          <text x="7" y="26" fontFamily="Georgia, serif" fontWeight="bold" fontSize="28" fill="url(#logo-g)">p</text>
         </svg>
-        <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--p-text)' }}>palette-pal</span>
+        <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--p-text)' }}>palette pal</span>
       </div>
 
       {divider}
