@@ -290,9 +290,9 @@ function inflatePalette(
   raw: { id?: string; name?: string; activeScaleId?: string | null; scales?: Partial<ColorScale>[] },
   fallbackName: string,
 ): SavedPalette {
-  const scales = Array.isArray(raw.scales) && raw.scales.length > 0
+  const scales = Array.isArray(raw.scales)
     ? raw.scales.map((s, i) => inflateScale(s, `Color ${i + 1}`))
-    : [makeDefaultScale(DEFAULT_HEX, 'Blue')];
+    : [];
   const activeScaleId = raw.activeScaleId && scales.some((s) => s.id === raw.activeScaleId)
     ? raw.activeScaleId
     : null;
@@ -346,14 +346,13 @@ function loadInitialState(): PaletteState {
     };
   }
 
-  // Empty state
-  const defaultScale = makeDefaultScale(DEFAULT_HEX, 'Blue');
-  const palette: SavedPalette = { id: defaultId, name: 'Default', activeScaleId: null, scales: [defaultScale] };
+  // Empty state — no scales, show scale picker
+  const palette: SavedPalette = { id: defaultId, name: 'Default', activeScaleId: null, scales: [] };
   return {
     savedPalettes: [palette],
     activePaletteId: defaultId,
     currentPaletteName: 'Default',
-    scales: [defaultScale],
+    scales: [],
     activeScaleId: null,
     focusedStepRef: null,
     contrastMode: 'wcag',
@@ -406,17 +405,16 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
         current.activeScaleId = state.activeScaleId;
         current.name = state.currentPaletteName;
       }
-      const newScale = makeDefaultScale(DEFAULT_HEX, 'Blue');
       const newPalette: SavedPalette = {
         id: uid(),
         name,
         activeScaleId: null,
-        scales: [newScale],
+        scales: [],
       };
       state.savedPalettes.push(newPalette);
       state.activePaletteId = newPalette.id;
       state.currentPaletteName = name;
-      state.scales = [newScale];
+      state.scales = [];
       state.activeScaleId = null;
       state.focusedStepRef = null;
     }),
