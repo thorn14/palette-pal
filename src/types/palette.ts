@@ -40,10 +40,14 @@ export interface ColorScale {
 
 export type GamutLevel = 'srgb' | 'p3' | 'out';
 
+export interface RgbChannels { r: number; g: number; b: number }
+
 export interface GeneratedStep {
   name: string;
   oklch: OklchColor;
   hex: string;          // sRGB-clamped hex (always safe fallback)
+  srgb: RgbChannels;    // sRGB r,g,b in [0,1] matching `hex` — authoritative channel data for srgb-gamut export
+  p3?: RgbChannels;     // display-p3 r,g,b in [0,1] when gamut === 'p3'
   displayP3?: string;   // color(display-p3 ...) CSS string, present only when gamut === 'p3'
   relativeLuminance: number;
   gamut: GamutLevel;   // gamut of the ideal (pre-sRGB-clamp) color
