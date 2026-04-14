@@ -144,7 +144,7 @@ export function buildChromaCurve(
     const peak = 0.45;
     const width = 0.35;
     const bell = Math.exp(-(((t - peak) / width) ** 2));
-    const floor = chromaLow + (chromaHigh - chromaLow) * t;
+    const floor = Math.min(chromaLow + (chromaHigh - chromaLow) * t, chromaPeak);
     return floor + (chromaPeak - floor) * bell;
   });
 }

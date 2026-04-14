@@ -801,7 +801,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
-      const clamped = values.slice(0, scale.stepCount);
+      const clamped = values.slice(0, scale.stepCount).map((v) => Math.max(0, Math.min(0.4, v)));
       scale.curves.chroma.values = clamped;
       // Sync scalar fields so updateSourceHex and Apply-to-all stay consistent
       if (clamped.length > 0) {
