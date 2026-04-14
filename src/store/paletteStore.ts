@@ -14,6 +14,25 @@ function uid(): string {
     : Math.random().toString(36).slice(2);
 }
 
+// Returns a scale name that doesn't collide with any other scale in `existing`.
+// If `desired` is already taken, appends " 2", " 3", etc. until free.
+// Pass `ignoreId` when renaming a scale so it doesn't count as its own conflict.
+function uniqueScaleName(
+  desired: string,
+  existing: readonly ColorScale[],
+  ignoreId?: string,
+): string {
+  const base = desired.trim() || 'Color';
+  const taken = new Set<string>();
+  for (const s of existing) {
+    if (s.id !== ignoreId) taken.add(s.name);
+  }
+  if (!taken.has(base)) return base;
+  let n = 2;
+  while (taken.has(`${base} ${n}`)) n++;
+  return `${base} ${n}`;
+}
+
 interface HistorySnapshot {
   scales: ColorScale[];
   activeScaleId: string | null;
@@ -347,7 +366,6 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
 
     toggleSrgbPreview: () => set((state) => { state.srgbPreview = !state.srgbPreview; }),
 
-<<<<<<< HEAD
     flushCurrentPalette: () => set((state) => {
       const palette = state.savedPalettes.find((p) => p.id === state.activePaletteId);
       if (!palette) return;
@@ -424,7 +442,8 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
 
     addScale: (sourceHex, name) => set((state) => {
       pushHistory(state);
-      const scale = makeDefaultScale(sourceHex, name ?? `Color ${state.scales.length + 1}`);
+      const desired = name ?? `Color ${state.scales.length + 1}`;
+      const scale = makeDefaultScale(sourceHex, uniqueScaleName(desired, state.scales));
 
       // Inherit naming + step count from existing scales so all ramps stay in sync
       const reference = state.scales[0];
@@ -761,7 +780,9 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
     bulkCreateScales: (scaleInputs, namingPreset, lightnessPreset) => set((state) => {
       pushHistory(state);
       for (const { sourceHex, name } of scaleInputs) {
-        const scale = makeDefaultScale(sourceHex, name);
+        // Dedupe against already-existing scales AND against prior scales
+        // created in this same bulk call (state.scales grows as we push).
+        const scale = makeDefaultScale(sourceHex, uniqueScaleName(name, state.scales));
         scale.naming = { preset: namingPreset };
         if (lightnessPreset !== 'tailwind' && lightnessPreset !== 'custom') {
           scale.curves.lightness.values = buildLightnessValues(lightnessPreset, scale.stepCount);
@@ -797,7 +818,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
 
         const scale: ColorScale = {
           id: uid(),
-          name: imp.name,
+          name: uniqueScaleName(imp.name, state.scales),
           sourceHex: normalizedHex,
           sourceOklch,
           sourceAlpha: sourceOklch.alpha ?? 1,
@@ -869,7 +890,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       const clone: ColorScale = {
         ...plain,
         id: uid(),
-        name: `${plain.name} (copy)`,
+        name: uniqueScaleName(`${plain.name} (copy)`, state.scales),
         hueShift: { ...plain.hueShift },
         naming: plain.naming.customNames
           ? { preset: plain.naming.preset, customNames: plain.naming.customNames.slice() }

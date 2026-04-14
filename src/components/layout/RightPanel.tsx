@@ -54,6 +54,11 @@ export function RightPanel({ scale, activeStep }: Props) {
   const darkEndAdjustId = `${idBase}-dark-end-adjust`;
   const updateSourceHex = usePaletteStore((s) => s.updateSourceHex);
   const updateScaleName = usePaletteStore((s) => s.updateScaleName);
+  const scales = usePaletteStore((s) => s.scales);
+  const trimmedName = scale.name.trim();
+  const nameConflict = trimmedName.length > 0 && scales.some(
+    (s) => s.id !== scale.id && s.name.trim() === trimmedName,
+  );
   const updateHueShift = usePaletteStore((s) => s.updateHueShift);
   const updateChromaPeak = usePaletteStore((s) => s.updateChromaPeak);
   const setChromaCurveValues = usePaletteStore((s) => s.setChromaCurveValues);
@@ -110,10 +115,24 @@ export function RightPanel({ scale, activeStep }: Props) {
           type="text"
           value={scale.name}
           onChange={(e) => updateScaleName(scale.id, e.target.value)}
-          style={inputStyle}
+          style={{
+            ...inputStyle,
+            ...(nameConflict ? { borderColor: 'var(--p-warning, #d97706)' } : {}),
+          }}
           className="focus-visible-ring"
           autoComplete="off"
+          aria-invalid={nameConflict || undefined}
+          aria-describedby={nameConflict ? `${nameId}-warning` : undefined}
         />
+        {nameConflict && (
+          <div
+            id={`${nameId}-warning`}
+            role="status"
+            style={{ fontSize: 11, color: 'var(--p-warning, #d97706)', marginTop: 4, lineHeight: 1.4 }}
+          >
+            Another scale in this palette has the same name. Export will suffix this one (e.g. “{trimmedName} 2”) to keep both.
+          </div>
+        )}
 
         <button
           type="button"

@@ -1,6 +1,6 @@
 import { parse, oklch, formatHex, wcagContrast, clampChroma, converter } from 'culori';
 import { APCAcontrast, sRGBtoY } from 'apca-w3';
-import type { ColorScale, OklchColor, GeneratedStep, GeneratedRamp, ContrastResult, WCAGLevel, GamutLevel } from '../types/palette';
+import type { ColorScale, OklchColor, GeneratedStep, GeneratedRamp, ContrastResult, WCAGLevel, GamutLevel, RgbChannels } from '../types/palette';
 
 const toRgb = converter('rgb');
 const toP3  = converter('p3');
@@ -265,12 +265,18 @@ export function generateRamp(scale: ColorScale): GeneratedRamp {
     // Classify gamut of the P3-clamped ideal color (will be 'srgb' or 'p3', never 'out')
     const gamut = checkGamut(l, cP3, h);
 
-    // For P3 colors, compute the full-gamut CSS value before sRGB clamping
+    // For P3 colors, capture the full-gamut r,g,b channels before sRGB clamping.
+    // Emit both the raw numeric form (for token export) and a CSS color-function string (for in-browser rendering).
+    let p3Channels: RgbChannels | undefined;
     let displayP3: string | undefined;
     if (gamut === 'p3') {
       const p3 = toP3({ mode: 'oklch' as const, l, c: cP3, h });
       if (p3) {
-        displayP3 = `color(display-p3 ${(p3.r ?? 0).toFixed(4)} ${(p3.g ?? 0).toFixed(4)} ${(p3.b ?? 0).toFixed(4)})`;
+        const pr = p3.r ?? 0;
+        const pg = p3.g ?? 0;
+        const pb = p3.b ?? 0;
+        p3Channels = { r: pr, g: pg, b: pb };
+        displayP3 = `color(display-p3 ${pr.toFixed(4)} ${pg.toFixed(4)} ${pb.toFixed(4)})`;
       }
     }
 
@@ -278,6 +284,14 @@ export function generateRamp(scale: ColorScale): GeneratedRamp {
     const sourceAlpha = clampAlpha(scale.sourceAlpha ?? sourceOklch.alpha);
     const srgbClamped = clampChroma({ mode: 'oklch' as const, l, c: cP3, h, alpha: sourceAlpha }, 'oklch');
     const hex = formatHex(srgbClamped) ?? '#000000';
+    // Capture the sRGB r,g,b channels that correspond to `hex` so token export can emit
+    // components that are byte-for-byte consistent with the hex fallback.
+    const srgbRgb = toRgb(srgbClamped);
+    const srgbChannels: RgbChannels = {
+      r: srgbRgb?.r ?? 0,
+      g: srgbRgb?.g ?? 0,
+      b: srgbRgb?.b ?? 0,
+    };
     // Store the true rendered OKLCH: P3-clamped chroma (cP3) reflects the actual displayed color.
     // For sRGB colors cP3 === sRGB boundary chroma, so no regression there.
     const oklchOut: OklchColor = { l, c: cP3, h, alpha: clampAlpha(sourceAlpha) };
@@ -288,6 +302,8 @@ export function generateRamp(scale: ColorScale): GeneratedRamp {
       name: stepNames[i],
       oklch: oklchOut,
       hex,
+      srgb: srgbChannels,
+      p3: p3Channels,
       displayP3,
       relativeLuminance,
       gamut,
