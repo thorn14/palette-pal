@@ -304,8 +304,17 @@ function inflatePalette(
   };
 }
 
+const STORAGE_KEY = 'palette-pal:color-tokens';
+
 function loadInitialState(): PaletteState {
-  const cfg = (initialConfig ?? {}) as PaletteConfig;
+  let cfg: PaletteConfig = {};
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) cfg = JSON.parse(stored) as PaletteConfig;
+  } catch { /* ignore */ }
+  if (!cfg.version && !cfg.scales && !cfg.palettes) {
+    cfg = (initialConfig ?? {}) as PaletteConfig;
+  }
 
   // v2 format: has palettes array
   if (cfg.version === 2 && Array.isArray(cfg.palettes) && cfg.palettes.length > 0) {

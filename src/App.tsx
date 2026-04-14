@@ -92,7 +92,7 @@ export default function App() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo]);
 
-  async function handleSave() {
+  function handleSave() {
     setSaveStatus('saving');
     try {
       usePaletteStore.getState().flushCurrentPalette();
@@ -102,12 +102,7 @@ export default function App() {
         activePaletteId: state.activePaletteId,
         palettes: state.savedPalettes,
       };
-      const res = await fetch('/__save-color-tokens', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload, null, 2),
-      });
-      if (!res.ok) throw new Error('Save failed');
+      localStorage.setItem('palette-pal:color-tokens', JSON.stringify(payload));
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch {
