@@ -21,7 +21,7 @@ const config = JSON.parse(readFileSync(tokensPath, 'utf-8')) as {
 };
 
 const scales: ColorScale[] = config.version === 2
-  ? (config.palettes ?? []).flatMap((p) => p.scales ?? [])
+  ? (config.palettes ?? []).flatMap((p) => (Array.isArray(p.scales) ? p.scales : []))
   : config.scales ?? [];
 const ramps = scales.map((s) => generateRamp(s));
 const tokens = exportToW3CTokens(ramps);

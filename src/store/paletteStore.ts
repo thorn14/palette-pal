@@ -186,6 +186,24 @@ function resampleCurve(values: number[], nextCount: number): number[] {
   });
 }
 
+const CHROMA_VALUE_MAX = 0.4;
+
+function clampChromaValue(v: number): number {
+  return Math.max(0, Math.min(CHROMA_VALUE_MAX, v));
+}
+
+/** Clamp chroma curve samples to OKLch C range and align chromaLow / chromaHigh / chromaPeak. */
+function syncChromaScalarsFromCurve(scale: ColorScale): void {
+  const vals = scale.curves.chroma.values;
+  if (!vals.length) return;
+  for (let i = 0; i < vals.length; i++) {
+    vals[i] = clampChromaValue(vals[i]!);
+  }
+  scale.chromaLow = vals[0]!;
+  scale.chromaHigh = vals[vals.length - 1]!;
+  scale.chromaPeak = Math.max(...vals);
+}
+
 function insertNodeType(types: ('smooth' | 'corner')[] | undefined, index: number): ('smooth' | 'corner')[] | undefined {
   if (!types) return undefined;
   const next = types.slice();
@@ -552,6 +570,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       scale.curves.lightness.nodeTypes = insertNodeType(scale.curves.lightness.nodeTypes, clampedIndex);
       scale.curves.chroma.values = insertCurveValue(scale.curves.chroma.values, clampedIndex, scale.chromaPeak);
       scale.curves.chroma.nodeTypes = insertNodeType(scale.curves.chroma.nodeTypes, clampedIndex);
+      syncChromaScalarsFromCurve(scale);
       scale.curves.hue.values = insertCurveValue(scale.curves.hue.values, clampedIndex, 0);
       scale.curves.hue.nodeTypes = insertNodeType(scale.curves.hue.nodeTypes, clampedIndex);
     }),
@@ -571,6 +590,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       scale.curves.lightness.nodeTypes = removeNodeType(scale.curves.lightness.nodeTypes, index);
       scale.curves.chroma.values = removeCurveValue(scale.curves.chroma.values, index);
       scale.curves.chroma.nodeTypes = removeNodeType(scale.curves.chroma.nodeTypes, index);
+      syncChromaScalarsFromCurve(scale);
       scale.curves.hue.values = removeCurveValue(scale.curves.hue.values, index);
       scale.curves.hue.nodeTypes = removeNodeType(scale.curves.hue.nodeTypes, index);
     }),
@@ -579,7 +599,12 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       pushHistory(state);
-      scale.curves[channel].values[stepIndex] = value;
+      if (channel === 'chroma') {
+        scale.curves.chroma.values[stepIndex] = clampChromaValue(value);
+        syncChromaScalarsFromCurve(scale);
+      } else {
+        scale.curves[channel].values[stepIndex] = value;
+      }
     }),
 
     updateCurveValues: (id, channel, values) => set((state) => {
@@ -596,6 +621,9 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       }
 
       curve.values = nextValues;
+      if (channel === 'chroma') {
+        syncChromaScalarsFromCurve(scale);
+      }
 
       if (curve.nodeTypes) {
         const nextNodeTypes = curve.nodeTypes.slice(0, targetLength);
@@ -654,6 +682,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       scale.curves.chroma.values = resampleCurve(scale.curves.chroma.values, clampedValues.length);
       scale.curves.hue.values = resampleCurve(scale.curves.hue.values, clampedValues.length);
       resampleAllNodeTypes(scale, clampedValues.length);
+      syncChromaScalarsFromCurve(scale);
     }),
 
     setStepList: (id, names) => set((state) => {
@@ -668,6 +697,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       scale.curves.chroma.values = resampleCurve(scale.curves.chroma.values, cleaned.length);
       scale.curves.hue.values = resampleCurve(scale.curves.hue.values, cleaned.length);
       resampleAllNodeTypes(scale, cleaned.length);
+      syncChromaScalarsFromCurve(scale);
     }),
 
     setStepsAll: (names) => set((state) => {
@@ -682,6 +712,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
         scale.curves.chroma.values = resampleCurve(scale.curves.chroma.values, cleaned.length);
         scale.curves.hue.values = resampleCurve(scale.curves.hue.values, cleaned.length);
         resampleAllNodeTypes(scale, cleaned.length);
+        syncChromaScalarsFromCurve(scale);
       }
     }),
 
@@ -724,6 +755,7 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       scale.curves.chroma.values = resampleCurve(scale.curves.chroma.values, nextCount);
       scale.curves.hue.values = resampleCurve(scale.curves.hue.values, nextCount);
       resampleAllNodeTypes(scale, nextCount);
+      syncChromaScalarsFromCurve(scale);
     }),
 
     setLightnessAll: (values) => set((state) => {
@@ -760,8 +792,10 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       pushHistory(state);
-      const clamped = Math.max(0, Math.min(0.4, peak));
+      const clamped = clampChromaValue(peak);
       scale.chromaPeak = clamped;
+      scale.chromaLow = Math.min(scale.chromaLow ?? 0, clamped);
+      scale.chromaHigh = Math.min(scale.chromaHigh ?? 0, clamped);
       scale.curves.chroma.values = buildChromaCurve(clamped, scale.stepCount, scale.chromaLow ?? 0, scale.chromaHigh ?? 0);
     }),
 
@@ -769,25 +803,27 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       pushHistory(state);
-      const clamped = Math.max(0, Math.min(0.4, low));
+      const peak = scale.chromaPeak ?? 0;
+      const clamped = Math.min(clampChromaValue(low), peak);
       scale.chromaLow = clamped;
-      scale.curves.chroma.values = buildChromaCurve(scale.chromaPeak, scale.stepCount, clamped, scale.chromaHigh ?? 0);
+      scale.curves.chroma.values = buildChromaCurve(peak, scale.stepCount, clamped, scale.chromaHigh ?? 0);
     }),
 
     updateChromaHigh: (id, high) => set((state) => {
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
       pushHistory(state);
-      const clamped = Math.max(0, Math.min(0.4, high));
+      const peak = scale.chromaPeak ?? 0;
+      const clamped = Math.min(clampChromaValue(high), peak);
       scale.chromaHigh = clamped;
-      scale.curves.chroma.values = buildChromaCurve(scale.chromaPeak, scale.stepCount, scale.chromaLow ?? 0, clamped);
+      scale.curves.chroma.values = buildChromaCurve(peak, scale.stepCount, scale.chromaLow ?? 0, clamped);
     }),
 
     setChromaShapeAll: (low, peak, high) => set((state) => {
       pushHistory(state);
-      const clampedPeak = Math.max(0, Math.min(0.4, peak));
-      const clampedLow = Math.max(0, Math.min(0.4, low));
-      const clampedHigh = Math.max(0, Math.min(0.4, high));
+      const clampedPeak = clampChromaValue(peak);
+      const clampedLow = Math.min(clampChromaValue(low), clampedPeak);
+      const clampedHigh = Math.min(clampChromaValue(high), clampedPeak);
       for (const scale of state.scales) {
         if (scale.lockedFromOverrides) continue;
         scale.chromaPeak = clampedPeak;
@@ -801,14 +837,8 @@ export const usePaletteStore = create<PaletteState & PaletteActions & InternalSt
       pushHistory(state);
       const scale = state.scales.find((s) => s.id === id);
       if (!scale) return;
-      const clamped = values.slice(0, scale.stepCount).map((v) => Math.max(0, Math.min(0.4, v)));
-      scale.curves.chroma.values = clamped;
-      // Sync scalar fields so updateSourceHex and Apply-to-all stay consistent
-      if (clamped.length > 0) {
-        scale.chromaLow = clamped[0];
-        scale.chromaHigh = clamped[clamped.length - 1];
-        scale.chromaPeak = Math.max(...clamped);
-      }
+      scale.curves.chroma.values = values.slice(0, scale.stepCount);
+      syncChromaScalarsFromCurve(scale);
     }),
 
     setFocusedStep: (ref) => set((state) => {

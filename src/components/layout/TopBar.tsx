@@ -286,7 +286,7 @@ export function TopBar({ onExport, onImport, onSave, onEditSteps, onEditLightnes
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
         <svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true">
-          <rect width="32" height="32" rx="6" fill="#0d1117" />
+          <rect width="32" height="32" rx="6" fill="var(--p-bg-subtle)" />
           <defs>
             <linearGradient id="logo-g" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stopColor="#f472b6" />
