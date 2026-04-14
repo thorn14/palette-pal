@@ -55,10 +55,12 @@ export function RightPanel({ scale, activeStep }: Props) {
   const darkEndAdjustId = `${idBase}-dark-end-adjust`;
   const updateSourceHex = usePaletteStore((s) => s.updateSourceHex);
   const updateScaleName = usePaletteStore((s) => s.updateScaleName);
-  const scales = usePaletteStore((s) => s.scales);
   const nameKey = canonicalScaleName(scale.name);
-  const nameConflict = scales.some(
-    (s) => s.id !== scale.id && canonicalScaleName(s.name) === nameKey,
+  const nameConflict = usePaletteStore((s) =>
+    s.scales.some(
+      (candidateScale) =>
+        candidateScale.id !== scale.id && canonicalScaleName(candidateScale.name) === nameKey,
+    ),
   );
   const updateHueShift = usePaletteStore((s) => s.updateHueShift);
   const updateChromaPeak = usePaletteStore((s) => s.updateChromaPeak);
