@@ -132,14 +132,20 @@ export function maxP3Chroma(l: number, h: number): number {
   return lo;
 }
 
-// Build a bell-curve chroma array peaked at chromaPeak
-export function buildChromaCurve(chromaPeak: number, stepCount: number): number[] {
+// Build a bell-curve chroma array peaked at chromaPeak, with configurable floors
+export function buildChromaCurve(
+  chromaPeak: number,
+  stepCount: number,
+  chromaLow = 0,
+  chromaHigh = 0,
+): number[] {
   return Array.from({ length: stepCount }, (_, i) => {
     const t = stepCount === 1 ? 0 : i / (stepCount - 1);
     const peak = 0.45;
     const width = 0.35;
-    const bell = Math.exp(-Math.pow((t - peak) / width, 2));
-    return chromaPeak * bell;
+    const bell = Math.exp(-(((t - peak) / width) ** 2));
+    const floor = chromaLow + (chromaHigh - chromaLow) * t;
+    return floor + (chromaPeak - floor) * bell;
   });
 }
 
